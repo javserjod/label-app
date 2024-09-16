@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
+
 # import resetting for every session state variable in plot in graphic labelling
-from main import reset_line_chart_session_state
+from reset_functions import reset_all_session_state
 
 def app():
     
@@ -54,7 +55,8 @@ def app():
                     else:   # just rename the headers
                         st.session_state.dataset.columns = written_headers
 
-                    reset_line_chart_session_state()
+                    reset_all_session_state()   # reset all charts and labelling variables from session state to default value
+                    
                     st.rerun()   # rerun the app to update the table
         
     else:

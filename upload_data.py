@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
+
 # import resetting for every session state variable in plot in graphic labelling
-from main import reset_line_chart_session_state
+from reset_functions import reset_all_session_state
 
 def app():
     
@@ -17,8 +18,9 @@ def app():
         #reset graph type selection in graphic labelling
         st.session_state.graph_selectbox_index = 0
         # reset all charts variables from session state to default value
-        reset_line_chart_session_state()    # reset the line chart session state variables
-
+        
+        reset_all_session_state()    # reset all charts and labelling variables from session state to default value
+        
         
     #---------------------------- PAGE ------------------------------#
     st.header("Upload Data")

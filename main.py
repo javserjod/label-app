@@ -45,6 +45,7 @@ if "line_chart_column_against" not in st.session_state:
 if "line_chart_title" not in st.session_state:
     st.session_state.line_chart_title = "Line Chart"       # default value
 
+
 # scatter plot session state variables ...............................................
 if "scatter_x_axis_index" not in st.session_state:
     st.session_state.scatter_x_axis_index = 0       # default value
@@ -55,10 +56,26 @@ if "scatter_y_axis_index" not in st.session_state:
 if "scatter_color_index" not in st.session_state:
     st.session_state.scatter_color_index = 0        # default value
 
-# 
-if "selected_data" not in st.session_state:         # to store the selected data from graph
-    st.session_state.selected_data = None
+
+# labelling section session state variables ...............................................
     
+if "label_classes" not in st.session_state:         # to store the classes of the label
+    st.session_state.label_classes = []             # default value
+    
+if "currently_selected_class" not in st.session_state:    # to store the currently selected class
+    st.session_state.currently_selected_class = []          # default value
+
+if "selected_data" not in st.session_state:         # to store the selected data from any graph
+    st.session_state.selected_data = None
+
+if "label_column" not in st.session_state:          # to store the column thats contains the label
+    st.session_state.label_column = None            # change default value after uploading or editing dataset
+    
+if "label_column_name" not in st.session_state:     # to store the name of the label column
+    st.session_state.label_column_name = "label_column"         # default value
+        
+if "labelled_dataset" not in st.session_state:      # to store the labelled dataset
+    st.session_state.labelled_dataset = None
 
 #----------------------- APP CONTROL ---------------------------#
 # Create a class to manage the app
@@ -99,15 +116,3 @@ class LabelApp:
 
 
     run()
-
-
-    
-def reset_line_chart_session_state() -> None:
-        # reset line chart session state variables to default values
-        st.session_state.line_chart_y_axis = []
-        st.session_state.line_chart_toggle_time_series = True
-        st.session_state.line_chart_toggle_time_axis = True
-        st.session_state.freq_number_input = 1.00
-        st.session_state.line_chart_time_column = []
-        st.session_state.line_chart_column_against = []
-        st.session_state.line_chart_title = "Line Chart"

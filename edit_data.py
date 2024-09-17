@@ -21,8 +21,6 @@ def app():
                                                     use_container_width = True,
                                                     num_rows = "dynamic")
         
-        
-        
         with st.expander("Modify headers"):
             with st.form("header_form"):
                 
@@ -58,6 +56,26 @@ def app():
                     reset_all_session_state()   # reset all charts and labelling variables from session state to default value
                     
                     st.rerun()   # rerun the app to update the table
+        
+        
+        
+        @st.cache_data
+        def convert_df_csv(df) -> bytes:
+            # converts the dataframe to a csv file
+            # IMPORTANT: Cache the conversion to prevent computation on every rerun
+            return df.to_csv(index=False).encode("utf-8")
+
+        csv = convert_df_csv(st.session_state.dataset)
+
+        
+        if st.download_button(label="Download modified dataset as CSV", data=csv,
+                            file_name = st.session_state.file_name[:-4] + "_modified.csv", 
+                            mime="text/csv", type="primary"):  # remove orignal file extension and add "_modified.csv" to the name
+            st.success("Downloaded successfully!", icon="✅")
+        
+        
+        
+        
         
     else:
         st.write("Please, upload a file first...")

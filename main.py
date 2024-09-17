@@ -45,6 +45,19 @@ if "line_chart_column_against" not in st.session_state:
 if "line_chart_title" not in st.session_state:
     st.session_state.line_chart_title = "Line Chart"       # default value
 
+if "line_chart_painting_time_series" not in st.session_state:
+    st.session_state.line_chart_painting_time_series = []       # default value
+    
+if "line_chart_painting_against" not in st.session_state:
+    st.session_state.line_chart_painting_against = []       # default value
+
+if "color_picker" not in st.session_state:
+    st.session_state.color_picker = "#E6A9A9"       # default value pink
+
+if "line_chart_toggle_color" not in st.session_state:
+    st.session_state.line_chart_toggle_color = True    # default value (insert in number input)
+
+
 
 # scatter plot session state variables ...............................................
 if "scatter_x_axis_index" not in st.session_state:

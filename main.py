@@ -52,7 +52,7 @@ if "line_chart_painting_against" not in st.session_state:
     st.session_state.line_chart_painting_against = []       # default value
 
 if "color_picker" not in st.session_state:
-    st.session_state.color_picker = "#E6A9A9"       # default value pink
+    st.session_state.color_picker = "#6B5858"       # default value
 
 if "line_chart_toggle_color" not in st.session_state:
     st.session_state.line_chart_toggle_color = True    # default value (insert in number input)

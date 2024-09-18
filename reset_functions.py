@@ -24,7 +24,7 @@ def reset_line_chart_session_state() -> None:
     st.session_state.line_chart_title = "Line Chart"
     st.session_state.line_chart_painting_time_series = []   # could be a labelling session state
     st.session_state.line_chart_painting_against = []     
-    st.session_state.color_picker = "#E6A9A9"    # green default color
+    st.session_state.color_picker = "#6B5858"    # default color
     
     
 def reset_scatter_plot_session_state() -> None:

@@ -99,7 +99,7 @@ def app():
                     if st.session_state.line_chart_toggle_color:   # if toggle is selected, show the colors
                         # add color shapes
                         for prev_sel in st.session_state.line_chart_painting_against:   # newest appears in foreground layer
-                            fig.add_vrect(x0=prev_sel[0], x1=prev_sel[1], annotation_text=prev_sel[2], annotation_position="top",
+                            fig.add_vrect(x0=prev_sel[0], x1=prev_sel[1], annotation_text=prev_sel[2], annotation_position="top left", annotation_textangle=90,
                                         line_width=0, fillcolor=prev_sel[3], opacity=1, layer="below")   # add colored rectangle for each label
                     
                     st.session_state.selected_data = st.plotly_chart(fig, key="data_selection_key", on_select="rerun")   # show and assign selection variable listening

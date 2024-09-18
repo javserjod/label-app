@@ -344,7 +344,7 @@ def app():
         
         
         if st.session_state.graph_type == "None":     # nothing
-            st.error("Select a graph type to show all its parameters and display the data...")
+            st.warning("Select a graph type to show all its parameters and display the data...")
         with st.container(border = True):
             if st.session_state.graph_type == "Line Chart":
                 line_chart()

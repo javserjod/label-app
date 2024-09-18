@@ -8,17 +8,14 @@ def app():
     
     #-------------------------- FUNCTIONS ---------------------------#
     def load_data() -> None:
-        
-        # read file and store it in session state, also file name
+    # read file and store it in session state, also file name. and reset all charts variables from session state to default value
         st.session_state.original_dataset = pd.read_csv(uploaded_file)
         st.session_state.dataset = st.session_state.original_dataset.copy()  # copy the original dataset
         st.session_state.file_name =  uploaded_file.name
-        st.write("Data loaded successfully!")
     
         #reset graph type selection in graphic labelling
         st.session_state.graph_selectbox_index = 0
         # reset all charts variables from session state to default value
-        
         reset_all_session_state()    # reset all charts and labelling variables from session state to default value
         
         
@@ -29,7 +26,11 @@ def app():
                         type=['csv'])
     
     if uploaded_file is not None:   # when a file is uploaded
-        load_data()
+        try:
+            load_data()
+            st.success("Data loaded successfully!")
+        except:
+            st.error("Error while uploading the file. Please try again.")
     
     if st.session_state.dataset is not None:   # if any data was uploaded
         st.divider()
@@ -38,5 +39,5 @@ def app():
         st.dataframe(st.session_state.original_dataset, use_container_width = True)
         
     else:
-        st.write("No file uploaded yet...")
+        st.warning("No file uploaded yet...")
         

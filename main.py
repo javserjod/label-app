@@ -24,8 +24,6 @@ if "graph_selectbox_index" not in st.session_state:       # to store the index o
     st.session_state.graph_selectbox_index = 0      # default value
 
 # line chart session state variables ...............................................
-if "line_chart_y_axis" not in st.session_state:
-    st.session_state.line_chart_y_axis = []       # default value
     
 if "line_chart_toggle_time_series" not in st.session_state:
     st.session_state.line_chart_toggle_time_series = True    # default value (insert in number input)
@@ -42,9 +40,6 @@ if "line_chart_time_column" not in st.session_state:
 if "line_chart_column_against" not in st.session_state:
     st.session_state.line_chart_column_against = []    # default value (only one string allowed)
 
-if "line_chart_title" not in st.session_state:
-    st.session_state.line_chart_title = "Line Chart"       # default value
-
 if "line_chart_painting_time_series" not in st.session_state:
     st.session_state.line_chart_painting_time_series = []       # default value
     
@@ -54,24 +49,26 @@ if "line_chart_painting_against" not in st.session_state:
 if "color_picker" not in st.session_state:
     st.session_state.color_picker = "#6B5858"       # default value
 
-if "line_chart_toggle_color" not in st.session_state:
-    st.session_state.line_chart_toggle_color = True    # default value (insert in number input)
-
 
 
 # scatter plot session state variables ...............................................
-if "scatter_x_axis_index" not in st.session_state:
-    st.session_state.scatter_x_axis_index = 0       # default value
-       
-if "scatter_y_axis_index" not in st.session_state:
-    st.session_state.scatter_y_axis_index = 0       # default value
-      
-if "scatter_color_index" not in st.session_state:
-    st.session_state.scatter_color_index = 0        # default value
+if "scatter_plot_painting" not in st.session_state:
+    st.session_state.scatter_plot_painting = []       # default value
+
+
+
+# bar chart session state variables ...............................................
+if "barmode_index" not in st.session_state:
+    st.session_state.barmode_index = 0       # default value
+
+if "bar_chart_painting" not in st.session_state:
+    st.session_state.bar_chart_painting = []       # default value
+
+if "translated_indexes" not in st.session_state:
+    st.session_state.translated_indexes = []       # default value
 
 
 # labelling section session state variables ...............................................
-    
 if "label_classes" not in st.session_state:         # to store the classes of the label
     st.session_state.label_classes = []             # default value
     
@@ -89,6 +86,31 @@ if "label_column_name" not in st.session_state:     # to store the name of the l
         
 if "labelled_dataset" not in st.session_state:      # to store the labelled dataset
     st.session_state.labelled_dataset = None
+       
+if "chart_toggle_color" not in st.session_state:
+    st.session_state.chart_toggle_color = True    # default value (insert in number input)
+    
+
+# common for more than 1 chart session state variables ...............................................
+
+if "chart_title" not in st.session_state:
+    st.session_state.chart_title = ""       # default value
+     
+if "x_axis_variable_index" not in st.session_state:
+    st.session_state.x_axis_variable_index = 0       # default value
+       
+if "y_axis_variable_index" not in st.session_state:
+    st.session_state.y_axis_variable_index = 0       # default value
+    
+if "multiselect_y_axis_variable" not in st.session_state:
+    st.session_state.multiselect_y_axis_variable = []       # default value
+    
+if "chart_color_variable_index" not in st.session_state:
+    # to store the index of the chosen color variable in selectbox
+    st.session_state.chart_color_variable_index = 0        # default value
+
+
+
 
 #----------------------- APP CONTROL ---------------------------#
 # Create a class to manage the app

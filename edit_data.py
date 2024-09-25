@@ -78,4 +78,4 @@ def app():
         
         
     else:
-        st.write("Please, upload a file first...")
+        st.warning("Please, upload a file first...")    # if no file uploaded, show warning message

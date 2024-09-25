@@ -7,4 +7,4 @@ def app():
         st.subheader(f"File name: {st.session_state.file_name}")
         st.write(":construction: This page is under construction. :construction:")
     else:
-        st.write("Please, upload a file first...")
+        st.warning("Please, upload a file first...")    # if no file uploaded, show warning message

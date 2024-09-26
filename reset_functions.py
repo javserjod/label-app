@@ -21,6 +21,7 @@ def reset_line_chart_session_state() -> None:
     st.session_state.line_chart_toggle_time_axis = True
     st.session_state.freq_number_input = 1.00
     st.session_state.line_chart_time_column = []
+    st.session_state.line_chart_time_axis = []
     st.session_state.line_chart_column_against = []
     st.session_state.line_chart_painting_time_series = []   # could be a labelling session state
     st.session_state.line_chart_painting_against = []     
@@ -29,7 +30,9 @@ def reset_line_chart_session_state() -> None:
     
 def reset_scatter_plot_session_state() -> None:
     # reset scatter plot session state variables to default values
-    st.session_state.scatter_plot_painting = []  
+    st.session_state.toggle_color_label_variable = True    # default toggle active
+    st.session_state.list_color_classes = []
+    st.session_state.scatter_plot_painting = []
     
 
 def reset_bar_chart_session_state() -> None:

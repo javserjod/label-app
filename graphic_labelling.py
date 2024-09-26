@@ -7,8 +7,7 @@ from reset_functions import reset_all_session_state
 
 def app():
     
-
-    #-------------------------- FUNCTIONS ---------------------------#
+    #-------------------------- COMMON FUNCTIONS FOR EVERY CHART---------------------------#
     
     def reload_graph_type_selectbox() -> None:
         # reload the graph type selectbox index since last selected option (graph_options defined in scope)
@@ -30,8 +29,36 @@ def app():
     def reload_multiselect_y_axis_variable() -> None:
         # reload the selected columns for the y axis in a multiselect
         st.session_state.multiselect_y_axis_variable = st.session_state.multiselect_y_axis_variable_key    # store the selected columns
-    
         
+    def add_new_class_label() -> None:
+        # add a new label to the label classes
+        if st.session_state.new_class_label_key not in st.session_state.label_classes:   # if not duplicated
+            if any(char.isalnum() for char in st.session_state.new_class_label_key):  # if at least one alphanumeric character
+                st.session_state.label_classes.append(st.session_state.new_class_label_key)
+                st.session_state.new_class_label_key = ""        # empty the text input
+        # else error message
+        
+    def reload_currently_activated_class() -> None:
+        # reload the activated class
+        st.session_state.currently_selected_class = st.session_state.currently_selected_class_key
+    
+    def delete_classes_options() -> None:
+        # delete classes options and remove the activated class
+        st.session_state.label_classes = []
+        st.session_state.currently_selected_class = []    
+        
+    def reload_label_column_name() -> None:
+        # reload the name of the label column
+        if st.session_state.label_column_name_key not in st.session_state.dataset.columns.tolist() and any(char.isalnum() for char in st.session_state.label_column_name_key):  # if not duplicated and at least one alphanumeric character
+            st.session_state.label_column_name = st.session_state.label_column_name_key
+        #else error message
+            
+    def save_labels() -> None:
+        # save the labels in the dataset
+        st.session_state.dataset = st.session_state.labelled_dataset
+        st.success("Labels saved successfully! Check the resulting dataset in Edit Data page", icon="✅") 
+        reset_all_session_state()   # reset all charts and labelling variables from session state to default value
+    
         
     #......................LINE CHART...........................................
     def line_chart() -> None:
@@ -39,22 +66,23 @@ def app():
         st.subheader("Line Chart")
         
         # toggle for selecting if time series or not
-        st.toggle("TIME SERIES?", help="Selecting this option will set a time axis given a selected frequency or column from dataset. If not selected, just represents variables against other variable. Warning: session will be resetted",
+        st.toggle("TIME SERIES?", help="Selecting this option will set a time axis given a selected frequency or column from dataset. If not selected, just represents variables against other variable",
                   value=st.session_state.line_chart_toggle_time_series, on_change=reload_line_chart_toggle_time_series)
         
         try:  
             # y axis data selection from dataset
             multiselect_col, add_button_col = st.columns([0.8, 0.2], vertical_alignment="bottom")
             with multiselect_col:
-                st.multiselect("Select the data to be displayed in the line chart, on the y-axis:", options=st.session_state.dataset.columns.tolist(),
-                        default = st.session_state.multiselect_y_axis_variable, on_change=reload_multiselect_y_axis_variable, key="multiselect_y_axis_variable_key")    # multiselect for the columns to be displayed in the line chart
+                st.multiselect("Select variables on the y-axis:", options=st.session_state.dataset.columns.tolist(),
+                        default = st.session_state.multiselect_y_axis_variable, on_change=reload_multiselect_y_axis_variable, key="multiselect_y_axis_variable_key",    # multiselect for the columns to be displayed in the line chart
+                        placeholder="Choose one or more options")
             with add_button_col:
                 st.button("Add all columns", on_click=line_chart_add_all_columns)
 
 
-            if st.session_state.line_chart_toggle_time_series:   # if toggle is selected, show options for time series (creating time axis) 
+            if st.session_state.line_chart_toggle_time_series:   # if time series (creating time axis) 
                 # input for the frequency of the data, in Hertz
-                st.toggle("Use sampling frequency to set time axis?", help="Selecting this option will set the time axis based on the sampling frequency of the data. If not selected, select one column from the dataset to be used as time axis.",
+                st.toggle("Use sampling frequency to set time axis?", help="Selecting this option will set the time axis based on the sampling frequency of the data. If not selected, select one column from the dataset to be used as time axis. On change, reset frequency and time axis column",
                             value=st.session_state.line_chart_toggle_time_axis, on_change=reload_line_chart_toggle_time_axis)
                 
                 if st.session_state.line_chart_toggle_time_axis:   # if toggle is selected, show the number input for the frequency
@@ -63,9 +91,17 @@ def app():
                     reload_line_chart_freq()   # reload and set time axis when loading (initialize)
                 
                 else:     # select one column as time axis
-                    st.multiselect("Select the variable that contains the time axis", options=st.session_state.dataset.columns.tolist(),
-                                max_selections=1, default=st.session_state.line_chart_time_column, on_change= reload_line_chart_time_column, key="multiselect_time_column")    # select the time column NAME
-                    reload_line_chart_time_column()       # reload and set time axis when loading (initialize)
+                    if len(st.session_state.line_chart_time_column) == 1:    # if selected
+                        if not st.multiselect("Select the variable that contains the time axis", options=st.session_state.dataset.columns.tolist(),
+                                    max_selections=1, default=st.session_state.line_chart_time_column, on_change= reload_line_chart_time_column, key="multiselect_time_column"):    # select the time column NAME
+                            reload_line_chart_time_column()       # reload and set time axis when loading (initialize)
+                    else:
+                        st.multiselect("Select the variable that contains the time axis", options=st.session_state.dataset.columns.tolist(),
+                                    max_selections=1, default=st.session_state.line_chart_time_column, on_change= reload_line_chart_time_column, key="multiselect_time_column")
+                        if len(st.session_state.multiselect_y_axis_variable) > 0:
+                            raise Exception("Time column missing")
+                        else:
+                            raise Exception("At least one Y-axis column and Time column are missing")
                 
                 # text input for line chart title
                 st.session_state.chart_title=st.text_input("Title of the line chart:", value=st.session_state.chart_title, key="chart_text_input_title",
@@ -76,12 +112,15 @@ def app():
                     global fig
                     fig = go.Figure()
                     for col in st.session_state.multiselect_y_axis_variable:
-                        fig.add_trace(go.Scatter(x=st.session_state.line_chart_time_axis, y=st.session_state.dataset.loc[:, col], name=col, 
-                                                mode='lines+markers', marker={'opacity': 0}))   # line + markers mandatory for selection (markers opacity 0)
+                        fig.add_trace(go.Scatter(x=st.session_state.line_chart_time_axis, 
+                                                 y=st.session_state.dataset.loc[:, col], 
+                                                 name=col, 
+                                                 mode='lines+markers', marker={'opacity': 0}))   # line + markers mandatory for selection (markers opacity 0)
                     
                     fig.update_layout(title=dict(text=st.session_state.chart_title, x=0.5, xanchor='center', y=0.9, yanchor='top'), 
-                                    xaxis_title=dict(text="Time (s)"), 
+                                    xaxis_title=dict(text="Time (s)") if st.session_state.line_chart_toggle_time_axis else dict(text="Time : " +st.session_state.line_chart_time_column[0]), 
                                     dragmode="select", selectdirection="h",
+                                    hovermode="x unified",        # assist for aiming samples
                                     activeselection=dict(fillcolor='pink', opacity=0.001), showlegend=True)
                                     #yaxis_title=dict(text=str(st.session_state.multiselect_y_axis_variable)))    # don't set y axis title - legend is preferred
                     
@@ -107,12 +146,15 @@ def app():
                     # add traces to plot after given the parameters (not time series)
                     fig = go.Figure()
                     for col in st.session_state.multiselect_y_axis_variable:            
-                            fig.add_trace(go.Scatter(x=st.session_state.dataset.loc[:, st.session_state.line_chart_column_against[0]], y=st.session_state.dataset.loc[:, col], name=col, 
-                                                    mode='lines+markers', marker={'opacity': 0}))   # line + markers mandatory for selection (markers opacity 0)
+                            fig.add_trace(go.Scatter(x=st.session_state.dataset.loc[:, st.session_state.line_chart_column_against[0]], 
+                                                     y=st.session_state.dataset.loc[:, col], 
+                                                     name=col, 
+                                                     mode='lines+markers', marker={'opacity': 0}))   # line + markers mandatory for selection (markers opacity 0)
                     
                     fig.update_layout(title=dict(text=st.session_state.chart_title, x=0.5, xanchor='center', y=0.9, yanchor='top'), 
                                     xaxis_title=dict(text=st.session_state.line_chart_column_against[0]),
                                     dragmode="select", selectdirection="h",
+                                    hovermode="x unified",        # assist for aiming samples
                                     activeselection=dict(fillcolor='pink', opacity=0.001), showlegend=True)
                                     #yaxis_title=dict(text=str(st.session_state.multiselect_y_axis_variable)))    # don't set y axis title - legend is preferred
                     
@@ -129,18 +171,28 @@ def app():
             
         # LABELLING SECTION
             st.subheader("Labelling Section")
+            
             # info about selected data samples interval
             try:
-                if st.session_state.line_chart_toggle_time_series: 
-                    interval=f"[{st.session_state.selected_data.selection.points[0]['point_index']}, {st.session_state.selected_data.selection.points[-1]['point_index']}]"
-                    txt = f"Selected data samples indexes interval:\t{interval}"
+                if st.session_state.line_chart_toggle_time_series:   # if time series
+                    if st.session_state.line_chart_toggle_time_axis:      # if using sampling frequency
+                        interval=f"[{st.session_state.selected_data.selection.points[0]['point_index']}, {st.session_state.selected_data.selection.points[-1]['point_index']}]"
+                        interval_time=f"[{st.session_state.selected_data.selection.points[0]['point_index']/st.session_state.freq_number_input:.2f}, {st.session_state.selected_data.selection.points[-1]['point_index']/st.session_state.freq_number_input:.2f}]"
+                        txt = f"Selected samples interval (indexes): {interval} ---- Interval in seconds: {interval_time}"
+                    else:
+                        interval=f"[{st.session_state.selected_data.selection.points[0]['point_index']}, {st.session_state.selected_data.selection.points[-1]['point_index']}]"
+                        interval_time=f"[{st.session_state.selected_data.selection.points[0]['x']/st.session_state.freq_number_input:.2f}, {st.session_state.selected_data.selection.points[-1]['y']/st.session_state.freq_number_input:.2f}]"
+                        txt = f"Selected samples interval (indexes): {interval} ---- Time interval: {interval_time}"
                 else:
                     interval=f"[{min(point['x'] for point in st.session_state.selected_data.selection.points)}, {max(point['x'] for point in st.session_state.selected_data.selection.points)}]"
-                    txt = f"Selected data samples values interval:\t{interval}"
-                st.write(":white_check_mark: "+txt)
+                    txt = f"Selected X axis interval:\t{interval}"
+                txt=":white_check_mark: "+txt
             except Exception:
-                st.write(":question: No data samples selected on the graph...")
+                txt=":question: No data samples selected on the graph..."
             
+            with st.expander(txt, expanded=False):
+                st.write(st.session_state.selected_data.selection.points)
+                
             # classes for labelling
             col1, col2, col3 = st.columns([1, 1, 1], vertical_alignment="bottom")
             with col2:  # add new class for label
@@ -206,10 +258,18 @@ def app():
     
     def reload_line_chart_toggle_time_series() -> None:
         st.session_state.line_chart_toggle_time_series = not st.session_state.line_chart_toggle_time_series
-        # no reset of session state variables
+        # decided not to reset session state variables
     
     def reload_line_chart_toggle_time_axis() -> None:
         st.session_state.line_chart_toggle_time_axis = not st.session_state.line_chart_toggle_time_axis    # change the value of the toggle
+        # also reload the chart when changing the toggle
+        if st.session_state.line_chart_toggle_time_axis:
+            st.session_state.freq_aux = st.session_state.freq_number_input    # force to run the reload function
+            reload_line_chart_freq()
+        else:
+            if len(st.session_state.line_chart_time_column) == 1:    # if already one added
+                st.session_state.multiselect_time_column = st.session_state.line_chart_time_column    # force to run the reload function
+                reload_line_chart_time_column()
         
     def reload_line_chart_freq() -> None:
         # reload variable storing frequency number input and set time axis since frequency
@@ -226,31 +286,14 @@ def app():
     def reload_line_chart_time_column() -> None:
         # reload the time axis column selected in the multiselect and set time axis since column name from dataset
         st.session_state.line_chart_time_column = st.session_state.multiselect_time_column
-        st.session_state.line_chart_time_axis = st.session_state.dataset.loc[:, st.session_state.line_chart_time_column[0]]    # select the column from the dataset to be used as time axis
+        try:
+            st.session_state.line_chart_time_axis = st.session_state.dataset.loc[:, st.session_state.line_chart_time_column[0]]    # select the column from the dataset to be used as time axis
+        except:
+            pass
     
     def reload_line_chart_column_against() -> None:
         # reload the x axis variable selected in the multiselect when no time series
         st.session_state.line_chart_column_against = st.session_state.multiselect_column_against
-    
-    # labelling
-    def add_new_class_label() -> None:
-        # add a new label to the label classes
-        if st.session_state.new_class_label_key not in st.session_state.label_classes:   # if not duplicated
-            if any(char.isalnum() for char in st.session_state.new_class_label_key):  # if at least one alphanumeric character
-                st.session_state.label_classes.append(st.session_state.new_class_label_key)
-                st.session_state.new_class_label_key = ""        # empty the text input
-        # else error message
-    
-      
-        
-    def reload_currently_activated_class() -> None:
-        # reload the activated class
-        st.session_state.currently_selected_class = st.session_state.currently_selected_class_key
-    
-    def delete_classes_options() -> None:
-        # delete classes options and remove the activated class
-        st.session_state.label_classes = []
-        st.session_state.currently_selected_class = []
         
     def label_selected_data_line_chart() -> None:
         # label the selected data with the activated class and add color shape to plot in line chart
@@ -267,31 +310,13 @@ def app():
                                                                 max(point['x'] for point in st.session_state.selected_data.selection.points), 
                                                                 st.session_state.currently_selected_class[0],
                                                                 st.session_state.color_picker])
-        
-        
 
-        
-        
-    def reload_label_column_name() -> None:
-        # reload the name of the label column
-        if st.session_state.label_column_name_key not in st.session_state.dataset.columns.tolist() and any(char.isalnum() for char in st.session_state.label_column_name_key):  # if not duplicated and at least one alphanumeric character
-            st.session_state.label_column_name = st.session_state.label_column_name_key
-        
-        #else error message
-            
-    def save_labels() -> None:
-        # save the labels in the dataset
-        st.session_state.dataset = st.session_state.labelled_dataset
-        st.success("Labels saved successfully! Check the resulting dataset in Edit Data page", icon="✅") 
-        reset_all_session_state()   # reset all charts and labelling variables from session state to default value
-    
     #.............................................................................
 
 
 
     #...................SCATTER PLOT..............................................
     def scatter_plot() -> None:
-        st.write(":construction: Labelling function in Scatter Plot not supported yet...")
         # plot the data in a scatter plot
         st.subheader("Scatter Plot")
         
@@ -300,8 +325,20 @@ def app():
                         on_change=reload_x_axis_variable_index, key="x_axis")    # select the x axis data from index
             st.selectbox("Select the y-axis:", st.session_state.dataset.columns.tolist(), index = st.session_state.y_axis_variable_index,
                         on_change=reload_y_axis_variable_index, key="y_axis")    # select the y axis data from index
-            st.selectbox("Select the color (usually a categorical column):", st.session_state.dataset.columns.tolist(),
-                        index = st.session_state.chart_color_variable_index, on_change=reload_chart_color_variable_index, key="color")    # select the color data from index
+            
+            col1, col2 = st.columns([1, 1.5], vertical_alignment="bottom")
+            with col1:
+                st.toggle("Use new label column as color?", help="Selecting this will set the colors of the samples in the graph depending of the classes assigned to them. If not selected, use an existing variable for colouring",
+                            value=st.session_state.toggle_color_label_variable, on_change=reload_toggle_color_label_variable)
+            with col2:
+                if st.session_state.toggle_color_label_variable:   # if toggle selected, use new label column as color
+                    st.selectbox("Select the color (usually a categorical column):", st.session_state.dataset.columns.tolist(),
+                                index = st.session_state.chart_color_variable_index, on_change=reload_chart_color_variable_index, key="color",
+                                disabled=True)    # disabled selectbox if using new label column as color   
+                else: 
+                    st.selectbox("Select the color (usually a categorical column):", st.session_state.dataset.columns.tolist(),
+                                index = st.session_state.chart_color_variable_index, on_change=reload_chart_color_variable_index, key="color")    # select the color data from index
+            
             
             # text input for scatter plot chart title
             st.session_state.chart_title=st.text_input("Title of the scatter plot:", value=st.session_state.chart_title, key="chart_text_input_title",
@@ -310,44 +347,71 @@ def app():
             
             fig = go.Figure()
             
-            groups = st.session_state.dataset[st.session_state.color].unique()   # different labels for the selected column
-            for group in groups:    # add a trace for each label (if user selects non categorical column, there will be many traces)
-                fig.add_trace(go.Scatter(x=st.session_state.dataset[st.session_state.dataset[st.session_state.color] == group][st.session_state.x_axis], 
-                                        y=st.session_state.dataset[st.session_state.dataset[st.session_state.color] == group][st.session_state.y_axis], 
-                                        mode='lines+markers', line={'width':0}, name= group if type(group) == str else str(group)))  # convert to string if not string
+            if st.session_state.toggle_color_label_variable:   # if toggle is selected, use new label column as color
+                groups = list(set(st.session_state.label_column))    # minimun 1 group, the empty string
+                for group in groups:    # add a trace for each label (if user selects non categorical column, there will be many traces)
+                    idx_group = [index for index,value in enumerate(st.session_state.label_column) if value == group]    # indexes of samples labelled with the same class
+                    
+                    # colouring according to class
+                    current_color = "grey"    # default color
+                    if st.session_state.chart_toggle_color:   # if toggle is selected, show the colors
+                        for cls, color in st.session_state.list_color_classes:    # check the color of the current class
+                            if cls == group:
+                                current_color = color
+    
+                    x_values=st.session_state.dataset.iloc[idx_group][st.session_state.x_axis]
+                    y_values=st.session_state.dataset.iloc[idx_group][st.session_state.y_axis]
+                    fig.add_trace(go.Scatter(x=x_values, 
+                                                y=y_values, 
+                                                mode='lines+markers', line={'width':0}, name= group if type(group) == str else str(group),     # convert to string if not string
+                                                marker={'color': current_color},    # assign the samples the color of the class
+                                                customdata=idx_group,        # to keep original indexes of the samples even after adding them to new curves/classes
+                                                hoverinfo='text',
+                                                hovertext=[f'Index: {idx}<br>X: {x}<br>Y: {y}<br>Class: {group}' for idx, x, y in zip(idx_group, x_values, y_values)],   # show the index of the sample when hovering (the top one if coinciding coordenates)
+                                            )
+                                  )    
+
+            else:       # existing variable as color (NEW LABEL DOES NOT COLOUR POINTS)
+                groups = st.session_state.dataset[st.session_state.color].unique()   # different labels for the selected column
+                color_column = st.session_state.dataset[st.session_state.color]
+                for group in groups:    # add a trace for each label (if user selects non categorical column, there will be many traces)
+                    
+                    idx_group = [index for index,value in enumerate(color_column) if value == group]    # indexes of samples labelled with the same class
+                    
+                    x_values=st.session_state.dataset.iloc[idx_group][st.session_state.x_axis]
+                    y_values=st.session_state.dataset.iloc[idx_group][st.session_state.y_axis]
+                    fig.add_trace(go.Scatter(x=x_values, 
+                                                y=y_values, 
+                                                mode='lines+markers', line={'width':0}, name= group if type(group) == str else str(group),    # convert to string if not string
+                                                customdata=idx_group,        # to keep original indexes of the samples even after adding them to new curves/classes
+                                                hoverinfo='text',
+                                                hovertext=[f'Index: {idx}<br>X: {x}<br>Y: {y}<br>Class: {group}' for idx, x, y in zip(idx_group, x_values, y_values)],   # show the index of the sample when hovering (the top one if coinciding coordenates)
+                                            )
+                                  )  
                 
             fig.update_layout(title=dict(text=st.session_state.chart_title, x=0.5, xanchor='center', y=0.9, yanchor='top'), 
                                 xaxis_title=dict(text=st.session_state.dataset.columns.tolist()[st.session_state.x_axis_variable_index]),
                                 yaxis_title=dict(text=st.session_state.dataset.columns.tolist()[st.session_state.y_axis_variable_index]),
                                 dragmode="lasso",
-                                activeselection=dict(fillcolor='pink', opacity=0.001), showlegend=True)
+                                activeselection=dict(fillcolor='pink', opacity=0.001), showlegend=True,
+                                hovermode="closest")    # show the closest point when hovering
              
-            if st.session_state.chart_toggle_color:   # if toggle is selected, show the colors
-                for prev_sel in st.session_state.scatter_plot_painting:   # newest appears in foreground layer 
-                    fig.add_shape(
-                        type='path',
-                        #x0=min(prev_sel[0]), y0=min(prev_sel[1]),
-                        #x1=max(prev_sel[0]), y1=max(prev_sel[1]),
-                        #xref='x', yref='y',
-                        path=f'M {" L ".join([f"{x},{y}" for x, y in zip(prev_sel[0], prev_sel[1])])} Z',  # Lasso path                    
-                        #annotation_text=prev_sel[2], annotation_position="top left", annotation_textangle=90,
-                        line_width=0, fillcolor=prev_sel[3], opacity=1, layer="below"
-                    )
-                
             
             st.session_state.selected_data = st.plotly_chart(fig, key="data_selection_key", on_select="rerun", config=config)    # show and assign selection variable listening
 
 
-
             # LABELLING SECTION
             st.subheader("Labelling Section")
+            
             # info about selected data samples
             try: 
                 n_points=f"{len(st.session_state.selected_data.selection.points)}"
-                txt = f"Points selected:\t{n_points}"
-                st.write(":white_check_mark: "+txt)
+                txt = f":white_check_mark: Points selected:\t{n_points}"
             except Exception:
-                st.write(":question: No data samples selected on the graph...")
+                txt=":question: No data samples selected on the graph..."
+                
+            with st.expander(txt, expanded=False):
+                st.write(st.session_state.selected_data.selection.points)
             
             # classes for labelling
             col1, col2, col3 = st.columns([1, 1, 1], vertical_alignment="bottom")
@@ -367,23 +431,33 @@ def app():
             with col3:
                 st.button(":wastebasket: Delete classes options", on_click= delete_classes_options)    # delete all classes options
 
+            if st.session_state.toggle_color_label_variable:    # only if color is new label column
+                try:
+                    if st.session_state.currently_selected_class[0] not in st.session_state.label_column:
+                        st.write(":eight_spoked_asterisk: New class selected. Choose its color in the color picker")
+                    else:
+                        st.write(":eight_pointed_black_star: Class already exists, so it has a color assigned")
+                except:
+                    st.write(":x: No class selected")
+                
+                _, col1, col2 = st.columns([0.22, 0.5, 1], vertical_alignment="bottom")
+                with col1:
+                    st.session_state.color_picker = st.color_picker("Color:", value=st.session_state.color_picker,
+                                        on_change=reload_color_picker, key="color_picker_key",
+                                        help="Choose the color that will identify the new class. If the class was already added, the previous color will remain...")    # color picker for the activated class        
+    
+                with col2:
+                    st.toggle(":eye: Show the colors of the classes on the graph", value=st.session_state.chart_toggle_color, on_change=reload_chart_toggle_color,
+                                help="Selecting this option will show the colors of the classes in the line chart. Otherwise, everyone is grey")    # toggle for showing colors in the line chart
 
-            _, col1, col2 = st.columns([0.22, 0.5, 1], vertical_alignment="bottom")
-            with col1:
-                st.session_state.color_picker = st.color_picker("Color:", value=st.session_state.color_picker,
-                                on_change=reload_color_picker, key="color_picker_key",
-                                help="Choose the color that will fill the next area selected on the graph")    # color picker for the activated class        
-            with col2:
-                st.toggle(":eye: Show the colors of the classes on the graph", value=st.session_state.chart_toggle_color, on_change=reload_chart_toggle_color,
-                            help="Selecting this option will show the colors of the classes in the line chart")    # toggle for showing colors in the line chart
 
             # button to apply the class to the samples
             if st.session_state.currently_selected_class != [] and st.session_state.selected_data.selection.points != []:   # if at least one sample is selected and a class is activated   
                 if st.button(f"Confirm labelling of interval with activated class", on_click=label_selected_data_scatter_plot,
                                 type="primary"):   # label selected data with activated class from label options
-                        st.success("Success in labelling the selected data", icon="✅")            
+                    st.success("Success in labelling the selected data", icon="✅")            
             else:
-                st.button(f"Confirm labelling of interval with activated class", disabled=True, type="primary",
+                st.button(f"Confirm labelling of selected samples with activated class", disabled=True, type="primary",
                             help="Only clickable if any data sample is selected and a class for the label is activated")   # label selected data with activated class from label options
         
             # default name variations if already used
@@ -406,7 +480,8 @@ def app():
             #st.error(e)
             st.error("Please, select correct parameters to draw the scatter plot... Problem: " + str(e), icon="🚨")    # if any error occurs, show message
         
-        
+      
+      
         
     def reload_x_axis_variable_index() -> None:
         # reload the index of column that will be used as x axis
@@ -415,7 +490,11 @@ def app():
     def reload_y_axis_variable_index() -> None:
         # reload the index of column that will be used as y axis
         st.session_state.y_axis_variable_index = st.session_state.dataset.columns.tolist().index(st.session_state.y_axis)   
-                
+    
+    def reload_toggle_color_label_variable() -> None:
+        # reload the toggle for using a new label column as color
+        st.session_state.toggle_color_label_variable = not st.session_state.toggle_color_label_variable    # change the value of the toggle            
+    
     def reload_chart_color_variable_index() -> None:
         # reload the index of column that will be used as color
         st.session_state.chart_color_variable_index = st.session_state.dataset.columns.tolist().index(st.session_state.color)                           
@@ -423,19 +502,17 @@ def app():
     
     def label_selected_data_scatter_plot() -> None:
         # label the selected data with the activated class and add info to variable that draws color polygon shape in scatter plot
+        # check before adding
+        if st.session_state.toggle_color_label_variable:      # if new label is color
+            if st.session_state.currently_selected_class[0] not in st.session_state.label_column:   # if first time a class is added, assign the chosen color to it
+                st.session_state.list_color_classes.append([st.session_state.currently_selected_class[0], st.session_state.color_picker])
+            
         for point in st.session_state.selected_data.selection.points:
-            st.session_state.label_column[point['point_index']] = st.session_state.currently_selected_class[0]    # label the selected data with the activated class
+            st.session_state.label_column[point['customdata']] = st.session_state.currently_selected_class[0]    # label the selected samples with the activated class, keeping original indexes
+            
         
-        # new labelled points will be the vertices of the polygon
-        lasso_x = [point['x'] for point in st.session_state.selected_data.selection.points]
-        lasso_y = [point['y'] for point in st.session_state.selected_data.selection.points]
-        st.session_state.scatter_plot_painting.append([lasso_x, 
-                                                        lasso_y, 
-                                                        st.session_state.currently_selected_class[0],
-                                                        st.session_state.color_picker])
-    
-        #point['x'] for point in st.session_state.selected_data.selection.points
-    
+        
+            
     #...................BAR PLOT..............................................
     def bar_chart() -> None:        
         st.subheader("Bar Chart")
@@ -483,25 +560,36 @@ def app():
                                         y=y_values,
                                         name=col if type(col) == str else str(col),
                                         #text=[f'Index: {i}<br>X: {x}<br>Color: {col}' for (i, x) in zip(original_indices, filtered_data[st.session_state.x_axis])],
-                                        text=[f'Indexes: {idx}<br>X: {x}<br>Color: {col}' for idx, x in zip(original_indices, x_values)],
+                                        text=[f'Indexes: {idx}<br>X: {x}<br>Y: {y}<br>Color: {col}' for idx, x, y in zip(original_indices, x_values, y_values)],
                                         hoverinfo='text',                   # show only the text on hover
                                         textposition='none',                # hide text on the graph
                                         orientation='v',                    # vertical bars
                                         )
                               )
 
+            custom_bargap=0.2
+            
             fig.update_layout(title=dict(text=st.session_state.chart_title, x=0.5, xanchor='center', y=0.9, yanchor='top'), 
                                 xaxis_title=dict(text=st.session_state.x_axis),
                                 yaxis_title=dict(text="Ocurrences"),
                                 dragmode="select", selectdirection="h",   # fits all height, just horizontal movement for selection
                                 barmode=st.session_state.barmode_key,
+                                bargap=custom_bargap,   # gap between bars
                                 activeselection=dict(fillcolor='pink', opacity=0.001), showlegend=True)
+                                
              
             if st.session_state.chart_toggle_color:   # if toggle is selected, show the colors
                 # add color shapes
                 for prev_sel in st.session_state.bar_chart_painting:   # newest appears in foreground layer
-                    fig.add_vrect(x0=prev_sel[0], x1=prev_sel[1], annotation_text=prev_sel[2], annotation_position="top left", annotation_textangle=90,
-                                line_width=0, fillcolor=prev_sel[3], opacity=1, layer="below")   # add colored rectangle for each label
+                    try:
+                        fig.add_vrect(x0=prev_sel[0]-custom_bargap*0.075, x1=prev_sel[1]+custom_bargap*0.075,  
+                                        annotation_text=prev_sel[2], annotation_position="top left", annotation_textangle=90,
+                                        line_width=0, fillcolor=prev_sel[3], opacity=1, layer="below")   # add colored rectangle for each label
+                    except:   
+                        fig.add_vrect(x0=prev_sel[0], x1=prev_sel[1],  
+                                        annotation_text=prev_sel[2], annotation_position="top left", annotation_textangle=90,
+                                        line_width=0, fillcolor=prev_sel[3], opacity=1, layer="below")   # add colored rectangle for each label
+    
     
             st.session_state.selected_data = st.plotly_chart(fig, key="data_selection_key", on_select="rerun", config=config)    # show and assign selection variable listening
 
@@ -588,7 +676,6 @@ def app():
             idx_to_label = current_curve[point["point_index"]]       # string with all indexes to label
             for idx in [int(x) for x in idx_to_label.split(', ')]:   # iterate over all indexes in mixed in the bar
                 st.session_state.label_column[idx] = st.session_state.currently_selected_class[0]
-
         #add info for colored rectangle to plot next time
         st.session_state.bar_chart_painting.append([min(point['x'] for point in st.session_state.selected_data.selection.points),       # x0
                                                     max(point['x'] for point in st.session_state.selected_data.selection.points),       # x1
@@ -623,8 +710,8 @@ def app():
         
         graph_options = ["None", "Line Chart", "Scatter Plot", "Bar Chart", "Pie Chart"]   # all the graph types available
         st.selectbox("Graph type", graph_options, index = st.session_state.graph_selectbox_index,
-                        on_change=reload_graph_type_selectbox, key="graph_type")    # select the graph type (index is preselected option)
-        
+                        on_change=reload_graph_type_selectbox, key="graph_type",    # select the graph type (index is preselected option)
+                        help="When changed, all the session state variables will be reset to default values")
         
         if st.session_state.graph_type == "None":     # nothing
             st.warning("Select a graph type to show all its parameters and display the data...")

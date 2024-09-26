@@ -37,6 +37,9 @@ if "freq_number_input" not in st.session_state:
 if "line_chart_time_column" not in st.session_state:
     st.session_state.line_chart_time_column = []       # default value (only one string allowed)
     
+if "line_chart_time_axis" not in st.session_state:
+    st.session_state.line_chart_time_axis = []       # default value
+    
 if "line_chart_column_against" not in st.session_state:
     st.session_state.line_chart_column_against = []    # default value (only one string allowed)
 
@@ -52,6 +55,13 @@ if "color_picker" not in st.session_state:
 
 
 # scatter plot session state variables ...............................................
+if "toggle_color_label_variable" not in st.session_state:
+    st.session_state.toggle_color_label_variable = True    # default toggle active
+    
+if "list_color_classes" not in st.session_state:
+    # to storre the equivalent color for each class
+    st.session_state.list_color_classes = []       # default value
+
 if "scatter_plot_painting" not in st.session_state:
     st.session_state.scatter_plot_painting = []       # default value
 

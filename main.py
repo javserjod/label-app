@@ -23,6 +23,9 @@ if "file_name" not in st.session_state:             # to store the uploaded file
 if "graph_selectbox_index" not in st.session_state:       # to store the index of the chosen graph type in selectbox
     st.session_state.graph_selectbox_index = 0      # default value
 
+
+# edit data session state variables ...............................................
+    
 # line chart session state variables ...............................................
     
 if "line_chart_toggle_time_series" not in st.session_state:

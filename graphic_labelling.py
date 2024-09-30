@@ -181,7 +181,7 @@ def app():
                         txt = f"Selected samples interval (indexes): {interval} ---- Interval in seconds: {interval_time}"
                     else:
                         interval=f"[{st.session_state.selected_data.selection.points[0]['point_index']}, {st.session_state.selected_data.selection.points[-1]['point_index']}]"
-                        interval_time=f"[{st.session_state.selected_data.selection.points[0]['x']/st.session_state.freq_number_input:.2f}, {st.session_state.selected_data.selection.points[-1]['y']/st.session_state.freq_number_input:.2f}]"
+                        interval_time=f"[{min(point['x'] for point in st.session_state.selected_data.selection.points)}, {max(point['x'] for point in st.session_state.selected_data.selection.points)}]"
                         txt = f"Selected samples interval (indexes): {interval} ---- Time interval: {interval_time}"
                 else:
                     interval=f"[{min(point['x'] for point in st.session_state.selected_data.selection.points)}, {max(point['x'] for point in st.session_state.selected_data.selection.points)}]"

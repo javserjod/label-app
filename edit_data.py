@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import time
 
 # import resetting for every session state variable in plot in graphic labelling
 from reset_functions import reset_all_session_state
@@ -7,19 +8,84 @@ from reset_functions import reset_all_session_state
 def app():
     
     #-------------------------- FUNCTIONS ---------------------------#
+    def reload_data_editor() -> None:
+        # reloads the data editor to update the dataset
+        
+        # if row deleted (can be one or more row at once)
+        if len(st.session_state.data_editor_key["deleted_rows"]) > 0:
+            try:
+                for del_row in st.session_state.data_editor_key["deleted_rows"]:
+                    st.session_state.dataset.drop(del_row, inplace=True)
+                del_row_str = ', '.join(map(str, st.session_state.data_editor_key["deleted_rows"]))   # convert to string to show in the message
+                
+                st.success("Rows ["+ del_row_str +"] deleted successfully. Indexes reset", icon="✅")
+                st.session_state.data_editor_key["deleted_rows"] = []   # reset the deleted rows list
+                st.session_state.dataset.reset_index(drop=True, inplace=True)   # reset the index of the dataset, so it starts from 0 and goes up consecutive numbers
+            except Exception as e:
+                st.error("Error while deleting rows: "+str(e), icon="🚨") 
+        
+        # if row added (only one row at a time) -> empty rows will contain empty strings instead of original None
+        if len(st.session_state.data_editor_key["added_rows"]) > 0:
+            try:
+                new_row = pd.DataFrame([[""] * len(st.session_state.dataset.columns)], columns=st.session_state.dataset.columns)   # create a new empty row with the same columns as the dataset
+                st.session_state.dataset = pd.concat([st.session_state.dataset, new_row], ignore_index=True)   # add a new empty row at the end of the dataset, already correct index
+                
+                st.success("New empty row added at last index successfully", icon="✅")
+                st.session_state.data_editor_key["added_rows"] = []   # reset the added rows list  
+            except Exception as e:
+                st.error("Error while adding new row: "+str(e), icon="🚨") 
+             
+        # if row cell edited (only one cell at a time) -> 
+        if len(st.session_state.data_editor_key["edited_rows"]) > 0:
+            try:
+                key_row = list(st.session_state.data_editor_key["edited_rows"].keys())[0]   # get key of the first and only dictionary = index of the row
+                key_col = list(st.session_state.data_editor_key["edited_rows"][key_row].keys())[0]      # get the only key of the inside dictionary = column name
+                val_new = list(st.session_state.data_editor_key["edited_rows"][key_row].values())[0]    # get the only value of the inside dictionary = new value
+                if val_new == None:   # if the value is None, replace with an empty string
+                    val_new = ""
+                
+                st.session_state.dataset.at[key_row, key_col] = val_new   # execute the change of value in the dataset
+                if val_new != "":
+                    st.success("Row ["+str(key_row)+"], Column ["+str(key_col)+"] edited successfully. New value: ["+str(val_new)+"]", icon="✅")
+                else:   # just indicate that the value was changed from None to empty string for compatibility reasons
+                    st.success("Row ["+str(key_row)+"], Column ["+str(key_col)+"] edited successfully. New value: ["+str(val_new)+"], forced change from None to empty string", icon="✅")
+                st.session_state.data_editor_key["edited_rows"] = []   # reset the edited cells list  
+            except Exception as e:
+                st.error("Error while editing row: "+str(e), icon="🚨") 
+                
+        
     def get_current_headers() -> list:
-        # returns the current headers of the dataset being edited
+        # returns list with the current headers of the dataset being edited
         return st.session_state.dataset.columns.tolist()
-
+ 
     #---------------------------- PAGE ------------------------------#
     if st.session_state.dataset is not None:   # if any data was uploaded
-    
+        
         st.header("Edit Data")
         st.subheader(f"File name: {st.session_state.file_name}")
         
-        st.session_state.dataset = st.data_editor(st.session_state.dataset,
-                                                    use_container_width = True,
-                                                    num_rows = "dynamic")
+        st.data_editor(st.session_state.dataset,
+                        use_container_width = True,
+                        num_rows = "dynamic",      # dynamic -> no indexes but allows adding rows with a click and deleting selected rows
+                        on_change=reload_data_editor,   # to reload when edited, added or deleted rows
+                        key="data_editor_key")     # key contains only modifications to the dataset
+     
+        # metrics
+        _, col1, col2, _ = st.columns(4)
+        with col1:
+            delta_rows = st.session_state.dataset.shape[0] - st.session_state.original_dataset.shape[0]   # difference in number of rows regarding the original dataset
+            st.metric(f"Number of rows", value=st.session_state.dataset.shape[0],
+                      delta=delta_rows if delta_rows != 0 else None)
+        
+        with col2:
+            delta_cols = st.session_state.dataset.shape[1] - st.session_state.original_dataset.shape[1]   # difference in number of columns regarding the original dataset
+            st.metric("Number of columns", value=st.session_state.dataset.shape[1],
+                      delta=delta_cols if delta_cols != 0 else None)
+            
+            
+    
+        
+        #st.write(types for types in st.session_state.dataset.dtypes)   # show the data types of the columns
         
         with st.expander("Modify headers"):
             with st.form("header_form"):
@@ -33,32 +99,96 @@ def app():
                 new_headers = st.toggle("Move down current headers and insert the new ones?",
                                         help = "Selecting this option will insert the current headers as the first row, and create new headers with the values given. Not selecting this option will just rename the current headers with the indicated values.")  
                 
-                submitted = st.form_submit_button("Submit")
-                if submitted:      # execute headers modification
+                if st.form_submit_button("Submit changes"):
+                    try:    
+                        if new_headers:    # move down current headers and insert the new ones  
+                            # do type conversion from existing reference row
+                            current_headers = get_current_headers()                 # get the current headers
+                            try:
+                                for i, col in enumerate(current_headers):
+                                    current_headers[i] = pd.Series([col]).astype(st.session_state.dataset.dtypes[col]).iloc[0]      # convert columns names to their type and add to the list
+                            except:
+                                raise ValueError(f"Cannot convert column name \"{col}\" to the type it contains, {st.session_state.dataset.dtypes[col]}")
+                            
+                            '''if len(st.session_state.dataset.values) > 0:                        # conversion only if there's at least one existing row (needed to have a reference for the types)
+                                for i in range(len(st.session_state.dataset.columns)):          # iterate over the previous headers to force type conversion
+                                    if type(current_headers[i]) != str:                         # conversion only if not string
+                                        current_headers[i] = type(st.session_state.dataset.values[0][i])(current_headers[i])   # force the type conversion if not string
+                            '''
+                            st.session_state.dataset = st.session_state.dataset.set_axis(written_headers, axis="columns")    # change the headers to the written ones
+                            st.session_state.dataset = pd.concat([pd.DataFrame([current_headers], columns=written_headers), 
+                                                                    st.session_state.dataset], ignore_index=True)     # join previous headers as first row, resulting in one dataset with default headers
+                            st.session_state.dataset.reset_index(drop=True, inplace=True)   # reset the index of the dataset, so it starts from 0 and goes up consecutive numbers
+                            #st.success("Previous headers are now the first row and new headers were added successfully", icon="✅")   # on top of screen
+                            reset_all_session_state()   # reset all variables from session state to default value
+                            st.rerun()   # rerun the app to update the table
+                            
+                        else:   # just rename the headers
+                            if written_headers==get_current_headers():   # if the headers are the same, do nothing
+                                st.warning("No changes were made to the headers...", icon="❓")
+                            else:
+                                st.session_state.dataset.columns = written_headers
+                                #st.success("Renaming of headers was successful", icon="✅")
+                                reset_all_session_state()   # reset all variables from session state to default value
+                                st.rerun()   # rerun the app to update the table
+                    except Exception as e:
+                        st.error("Error while modifying the headers ---- " + str(e), icon="🚨")
                     
-                    if new_headers:    # move down current headers and insert the new ones  
-                        # do type conversion since existing reference row
-                        current_headers = get_current_headers()                 # get the current headers
-
-                        if len(st.session_state.dataset.values) > 0:                        # conversion only if there's at least one existing row (needed to have a reference for the types)
-                            for i in range(len(st.session_state.dataset.columns)):          # iterate over the previous headers to force type conversion
-                                if type(current_headers[i]) != str:                         #conversion only if not string
-                                    current_headers[i] = type(st.session_state.dataset.values[0][i])(current_headers[i])   # force the type conversion if not string
+                 
+        with st.expander("Delete variable column"):
+            with st.form("delete_column_form"):
+                st.selectbox("Select the column to delete:", options=get_current_headers(),
+                             index=None, placeholder="Choose a variable",
+                             key="column_to_delete") 
+                
+                if st.form_submit_button("Confirm deletion"):
+                    if st.session_state.column_to_delete is not None:
+                        st.session_state.dataset = st.session_state.dataset.drop(st.session_state.column_to_delete, axis=1)   # drop the selected column
+                        # if everything went well
+                        reset_all_session_state()   # reset all charts and labelling variables from session state to default value
+                        st.rerun()   # rerun the app to update the table
+                        #st.success("Column "+st.session_state.column_to_delete+" was deleted successfully", icon="✅")   # on top of screen
+                    else:
+                        st.error("No column was selected to delete. Please, select one to proceed.", icon="🚨")
+        
+        
+        # replace values
+        with st.expander("Replace values"):
+            with st.form("replace_values_form"):
+                
+                # text inputs for the value to be replaced and the replacement value
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.text_input("Write the value to be replaced:", placeholder="Value to be replaced",
+                                key="value_replaced", value="", help="By default, it will be an empty string")   
+                with col2:
+                    st.text_input("Write the replacement value:", placeholder="Replacement value",
+                             key="replacement_value", value="", help="By default, it will be an empty string")
+                
+                # multiselect for the columns where the replacement will be applied
+                st.multiselect("Select the columns to apply the replacement:", options=get_current_headers(),
+                               default=None, key="columns_where_replace", placeholder="Columns where replacement will be applied",
+                               help="Select one or more columns to apply the replacement")
+                
+                if st.form_submit_button("Confirm replacement"):
+                    if len(st.session_state.columns_where_replace) > 0:    # any column where replace
+                        try:
+                            for col in st.session_state.columns_where_replace:
+                                # replacement. Make a conversion to the type of the column
+                                val_replaced_conv = pd.Series([st.session_state.value_replaced]).astype(st.session_state.dataset.dtypes[col]).iloc[0]
+                                replacement_val_conv = pd.Series([st.session_state.replacement_value]).astype(st.session_state.dataset.dtypes[col]).iloc[0]
+                                st.session_state.dataset[col] = st.session_state.dataset[col].replace(val_replaced_conv, replacement_val_conv)   # replace the values                                                
+                            # if everything went well
+                            reset_all_session_state()   # reset all charts and labelling variables from session state to default value
+                            st.rerun()   # rerun the app to update the table
+                        except Exception as e:
+                            st.error("Error while replacing the values ---- " + str(e), icon="🚨")
+                    
+                    else:
+                        st.error("No column was selected to perform the replacement", icon="🚨")
                         
-                        st.session_state.dataset = st.session_state.dataset.set_axis(written_headers, axis="columns")    # change the headers to the written ones
-                        st.session_state.dataset = pd.concat([pd.DataFrame([current_headers], columns=written_headers), 
-                                                                st.session_state.dataset], ignore_index=True)     # join previous headers as first row, resulting in one dataset with default headers
-                        st.session_state.dataset.reset_index(drop=True, inplace=True)   # reset the index of the dataset, so it starts from 0 and goes up consecutive numbers
-                    
-                    else:   # just rename the headers
-                        st.session_state.dataset.columns = written_headers
-
-                    reset_all_session_state()   # reset all charts and labelling variables from session state to default value
-                    
-                    st.rerun()   # rerun the app to update the table
-        
-        
-        
+                        
+    
         @st.cache_data
         def convert_df_csv(df) -> bytes:
             # converts the dataframe to a csv file

@@ -28,9 +28,9 @@ def app():
     if uploaded_file is not None:   # when a file is uploaded
         try:
             load_data()
-            st.success("Data loaded successfully!")
+            st.success("Data loaded successfully!", icon="✅")
         except:
-            st.error("Error while uploading the file. Please try again.")
+            st.error("Error while uploading the file. Please try again...", icon="🚨")
     
     if st.session_state.dataset is not None:   # if any data was uploaded
         st.divider()

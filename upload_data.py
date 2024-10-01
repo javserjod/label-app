@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os
 
 # import resetting for every session state variable in plot in graphic labelling
 from reset_functions import reset_all_session_state
@@ -37,6 +38,18 @@ def app():
         st.header("Preview Uploaded Data")
         st.subheader(f"File name: {st.session_state.file_name}")
         st.dataframe(st.session_state.original_dataset, use_container_width = True)
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Number of rows", value=st.session_state.original_dataset.shape[0])
+        with col2:
+            st.metric("Number of columns", value=st.session_state.original_dataset.shape[1])
+        with col3:
+            memory_usage=st.session_state.original_dataset.memory_usage(deep=True).sum()   # sum of memory usage of each column = total (BYTES)
+            size_in_kb = f"{memory_usage/(1024):.2f}"
+            size_in_mb = f"{memory_usage/(1024**2):.2f}"
+            st.metric("Size of dataset in memory", value=size_in_mb+" MB" if float(size_in_mb) > 1 else size_in_kb+" kB", 
+                      help="Size in memory after loading the file, which may differ from the actual file size due to Pandas conversion")
         
     else:
         st.warning("No file uploaded yet...")

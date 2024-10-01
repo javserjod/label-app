@@ -71,14 +71,13 @@ def app():
         
         try:  
             # y axis data selection from dataset
-            multiselect_col, add_button_col = st.columns([0.8, 0.2], vertical_alignment="bottom")
-            with multiselect_col:
+            col1, col2 = st.columns([0.8, 0.2], vertical_alignment="bottom")
+            with col1:
                 st.multiselect("Select variables on the y-axis:", options=st.session_state.dataset.columns.tolist(),
                         default = st.session_state.multiselect_y_axis_variable, on_change=reload_multiselect_y_axis_variable, key="multiselect_y_axis_variable_key",    # multiselect for the columns to be displayed in the line chart
                         placeholder="Choose one or more options")
-            with add_button_col:
+            with col2:
                 st.button("Add all columns", on_click=line_chart_add_all_columns)
-
 
             if st.session_state.line_chart_toggle_time_series:   # if time series (creating time axis) 
                 # input for the frequency of the data, in Hertz

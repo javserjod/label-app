@@ -62,8 +62,13 @@ def app():
                 
             
     def get_current_headers() -> list:
-        # returns list with the current headers of the dataset being edited
+        # returns list with the current headers of the current dataset being edited
         return st.session_state.dataset.columns.tolist()
+    
+    def save_filtered_dataset() -> None:
+        # save the filtered dataset in the session state variable. Used on_click inside Conditional Filtering expander
+        st.session_state.dataset = st.session_state.filtered_dataset         # assign to current dataset the filtered one
+        st.session_state.filtered_dataset = None       # reset the filtered dataset, save memory
  
     #---------------------------- PAGE ------------------------------#
     if st.session_state.dataset is not None:   # if any data was uploaded
@@ -96,7 +101,7 @@ def app():
             size_in_mb = f"{current_memory_usage/(1024**2):.2f}"
             if float(size_in_mb) > 1:   # use MB
                 st.metric("Size of dataset in memory", value=size_in_mb+" MB" if float(size_in_mb) > 1 else size_in_kb+" kB",
-                        delta=f"{(diff_memory_usage)/(1024**2):.2f}" if delta_cols != 0 else None,
+                        delta=f"{(diff_memory_usage)/(1024**2):.2f}" if diff_memory_usage != 0 else None,
                         help="Size in memory after loading the file, which may differ from the actual file size due to Pandas conversion") 
             else:    # use kB
                 st.metric("Size of dataset in memory", value=size_in_mb+" MB" if float(size_in_mb) > 1 else size_in_kb+" kB",
@@ -254,7 +259,7 @@ def app():
                              key="value_to_compare", value="", 
                              help="Write the value to compare with filter the column using the logic operator")
                     
-                if st.form_submit_button("Filter the dataset", help=":warning: This will remove the rest of the samples"):
+                if st.form_submit_button("Simulate the filtering and preview the changes", help="This will not apply the changes to the dataset yet. A new button will appear, which is the one that will apply the changes."):   # simulate the filtering
                     try:
                         if st.session_state.column_to_filter != None and len(st.session_state.condition_to_apply) > 0:
                             if st.session_state.dataset.dtypes[st.session_state.column_to_filter] == "object":   # accept any value to compare, whatever type it is
@@ -262,7 +267,7 @@ def app():
                                 # use backticks around column name (mandatory if contains spaces, punctuations, starting with digits...). Value to compare (already string) around double quotes
                                 query_str = f"`{st.session_state.column_to_filter}` {st.session_state.condition_to_apply[0]} \"{st.session_state.value_to_compare}\""
                                 try:  # directly make the query
-                                    st.session_state.dataset = st.session_state.dataset.query(query_str)   # filter the dataset  
+                                    st.session_state.filtered_dataset = st.session_state.dataset.query(query_str)   # filter the dataset  
                                 except:   # error while filtering
                                     raise ValueError(f"Something went wrong with the query: `{st.session_state.column_to_filter}` {st.session_state.condition_to_apply[0]} \"{st.session_state.value_to_compare}\"")
                             
@@ -275,30 +280,57 @@ def app():
                                         # use backticks around column name (mandatory if contains spaces, punctuations, starting with digits...)
                                         query_str = f"`{st.session_state.column_to_filter}` {st.session_state.condition_to_apply[0]} {value_to_compare_conv}"   # create the query string
                                         try:   # make the query
-                                            st.session_state.dataset = st.session_state.dataset.query(query_str)   # filter the dataset   
-                                            st.write(query_str)   
+                                            st.session_state.filtered_dataset = st.session_state.dataset.query(query_str)   # filter the dataset   
+                                            st.session_state.filtered_dataset.reset_index(drop=True, inplace=True)   # reset the index of the dataset, so it starts from 0 and goes up consecutive numbers   
                                         except:   # error while filtering
                                             raise ValueError(f"Something went wrong with the query: {query_str}")
 
                                     except:    # error while converting
                                         raise ValueError(f"Cannot convert value \"{st.session_state.value_to_compare}\" to the type of the column \"{st.session_state.column_to_filter}\", {st.session_state.dataset.dtypes[st.session_state.column_to_filter]}")
                             
-                            # if everything went well
-                            reset_all_session_state()   # reset all charts and labelling variables from session state to default value
-                            st.rerun()   # rerun the app to update the table          
+                            st.dataframe(st.session_state.filtered_dataset, use_container_width=True)   # preview of the changes
+                            
+                            # metrics for the future filtered dataset, comparing with the current dataset
+                            col1, col2, col3 = st.columns(3)
+                            with col1:
+                                delta_rows_filter = st.session_state.filtered_dataset.shape[0] - st.session_state.dataset.shape[0]   # difference in number of rows regarding the current dataset
+                                st.metric("Number of rows after filtering", value=st.session_state.filtered_dataset.shape[0],
+                                            delta=delta_rows_filter if delta_rows_filter != 0 else None,
+                                            help="Difference respect to the current dataset, not the original one")
+                            with col2:     # this won't change, but we add it for consistency
+                                delta_cols_filter = st.session_state.filtered_dataset.shape[1] - st.session_state.dataset.shape[1]   # difference in number of columns regarding the current dataset
+                                st.metric("Number of columns after filtering", value=st.session_state.filtered_dataset.shape[1],
+                                            delta=delta_cols_filter if delta_cols_filter != 0 else None,
+                                            help="Difference respect to the current dataset, not the original one")
+                            with col3:
+                                original_memory_usage_filter=st.session_state.dataset.memory_usage(deep=True).sum()   # sum of memory usage of each column = total (BYTES)
+                                current_memory_usage_filter=st.session_state.filtered_dataset.memory_usage(deep=True).sum()
+                                diff_memory_usage_filter = current_memory_usage_filter - original_memory_usage_filter
+                                size_in_kb_filter = f"{current_memory_usage_filter/(1024):.2f}"
+                                size_in_mb_filter = f"{current_memory_usage_filter/(1024**2):.2f}"
+                                if float(size_in_mb_filter) > 1:   # use MB
+                                    st.metric("Size of filtered dataset in memory", value=size_in_mb_filter+" MB" if float(size_in_mb_filter) > 1 else size_in_kb_filter+" kB",
+                                            delta=f"{(diff_memory_usage_filter)/(1024**2):.2f}" if diff_memory_usage_filter != 0 else None,
+                                            help="Size in memory after filtering the dataset, which may differ from the actual file size due to Pandas conversion. Difference respect to the current dataset, not the original one") 
+                                else:    # use kB
+                                    st.metric("Size of filtered dataset in memory", value=size_in_mb_filter+" MB" if float(size_in_mb_filter) > 1 else size_in_kb_filter+" kB",
+                                            delta=f"{(diff_memory_usage_filter)/(1024):.2f}" if diff_memory_usage_filter != 0 else None,
+                                            help="Size in memory after filtering the dataset, which may differ from the actual file size due to Pandas conversion. Difference respect to the current dataset, not the original one")
+                            
+                            # second button to apply the changes
+                            if st.form_submit_button("Apply changes to dataset", 
+                                                     help=":warning: This will remove the rest of the samples",
+                                                     on_click=save_filtered_dataset):   # save in the state session variable the filtering made
+                                # update the dataset with the filtered one
+                                reset_all_session_state()   # reset all charts and labelling variables from session state to default value
+                                st.rerun()   # rerun the app to update the table   
+        
                         else:
                             raise ValueError("No column or condition was selected to perform the filtering")
                         
                     except Exception as e:   # catch any error raised
                         st.error("Error while filtering the dataset ---- " + str(e), icon="🚨")            
                                     
-                            
-                            
-                        
-    
-    
-    
-    
     
         @st.cache_data
         def convert_df_csv(df) -> bytes:

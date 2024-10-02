@@ -25,6 +25,10 @@ if "graph_selectbox_index" not in st.session_state:       # to store the index o
 
 
 # edit data session state variables ...............................................
+
+if "filtered_dataset" not in st.session_state:      # to store the filtered dataset temporary
+    st.session_state.filtered_dataset = None
+    
     
 # line chart session state variables ...............................................
     

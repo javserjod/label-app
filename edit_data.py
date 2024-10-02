@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import io    # just for conversion to Excel (also downloaded module xlsxwriter)
 
 # import resetting for every session state variable in plot in graphic labelling
 from reset_functions import reset_all_session_state
@@ -69,6 +70,7 @@ def app():
         # save the filtered dataset in the session state variable. Used on_click inside Conditional Filtering expander
         st.session_state.dataset = st.session_state.filtered_dataset         # assign to current dataset the filtered one
         st.session_state.filtered_dataset = None       # reset the filtered dataset, save memory
+        st.success("Conditional filtering applied successfully. Dataset updated", icon="✅")
  
     #---------------------------- PAGE ------------------------------#
     if st.session_state.dataset is not None:   # if any data was uploaded
@@ -79,7 +81,7 @@ def app():
         st.data_editor(st.session_state.dataset,
                         use_container_width = True,
                         num_rows = "dynamic",      # dynamic -> no indexes but allows adding rows with a click and deleting selected rows
-                        on_change=reload_data_editor,   # to reload when edited, added or deleted rows
+                        on_change=reload_data_editor,   # to reload when edited cells, or added or deleted rows
                         key="data_editor_key")     # key contains only modifications to the dataset
         
         # metrics
@@ -218,8 +220,14 @@ def app():
         with st.expander("Insert new sample at chosen index"):
             with st.form("insert_new_sample_form"):
                 st.write("Write values compatible with the column type. Empty strings only available in object columns.")
-                for var in get_current_headers():
-                    st.text_input(var, key=var, placeholder=st.session_state.dataset.dtypes[var])
+                try:
+                    for var in get_current_headers():
+                        st.text_input(var, key=var, placeholder=st.session_state.dataset.dtypes[var])
+                except:
+                    pass    # a bug sometimes happens here, when adding label column and making a repalcement in it, 
+                            #text input related to label column produces an error, which can be ignored by changing pages...
+                            # but it's better to hide it with this try-except block
+                
                 st.slider("Choose the index to insert the new sample:", 
                           min_value=0, max_value=max(1, st.session_state.dataset.shape[0]), # in case the dataset is empty, set the max value to 1
                           value=0, key="slider_index_key", format= "Index %i",
@@ -332,19 +340,94 @@ def app():
                         st.error("Error while filtering the dataset ---- " + str(e), icon="🚨")            
                                     
     
+        # DOWNLOAD DATASET SECTION-------------------------------------
+        st.divider()
+        st.subheader("Download modified dataset")
+        
         @st.cache_data
         def convert_df_csv(df) -> bytes:
             # converts the dataframe to a csv file
             # IMPORTANT: Cache the conversion to prevent computation on every rerun
             return df.to_csv(index=False).encode("utf-8")
-
-        csv = convert_df_csv(st.session_state.dataset)
-
+                             
         
-        if st.download_button(label="Download modified dataset as CSV", data=csv,
-                            file_name = st.session_state.file_name[:-4] + "_modified.csv", 
-                            mime="text/csv", type="primary"):  # remove orignal file extension and add "_modified.csv" to the name
-            st.success("Downloaded successfully!", icon="✅")
+        @st.cache_data
+        def convert_df_json(df) -> str:
+            # converts the dataframe to a json file
+            # IMPORTANT: Cache the conversion to prevent computation on every rerun
+            return df.to_json(orient="records")   # each row is a dictionary, list of dictionaries
+         
+        @st.cache_data
+        def convert_df_parquet(df) -> str:
+            # converts the dataframe to a parquet file
+            # IMPORTANT: Cache the conversion to prevent computation on every rerun
+            return df.to_parquet()
+        
+        @st.cache_data
+        def convert_df_excel(df) -> bytes:
+            # converts the dataframe to a XLSX file
+            # IMPORTANT: Cache the conversion to prevent computation on every rerun
+            output = io.BytesIO()
+            writer = pd.ExcelWriter(output, engine="xlsxwriter", mode="w")    # download module xlsxwriter
+            df.to_excel(writer, index=False, sheet_name="sheet1")   # sheet1 is default name of the sheet
+            writer.close()
+            return output.getvalue()    # return the bytes of the file
+            
+        
+          
+        def reload_download_file_name() -> None:
+            # reloads the download file name when changed
+            st.session_state.download_file_name = st.session_state.download_file_name_key
+       
+        # default name was assigned when uploading dataset
+        st.text_input("Name for the downloaded file:", value=st.session_state.download_file_name,
+                        key="download_file_name_key", on_change=reload_download_file_name,
+                        help="Write the name of the file to be downloaded. The extension will be added automatically if not present, when clicking the download button. Please, in order to save correctly the written name, press Enter key or click anywhere but directly on the download button...")
+            
+        st.write("Current selected name: " + st.session_state.download_file_name)   # show the name of the file
+        
+        if len(st.session_state.download_file_name_key) > 1:
+            
+            # CSV download button
+            if st.download_button(label=":material/download: Download modified dataset as CSV", data=convert_df_csv(st.session_state.dataset),
+                                file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.csv') else st.session_state.download_file_name+'.csv', 
+                                mime="text/csv", type="primary",
+                                use_container_width=True): 
+                st.success(f"Dataset downloaded successfully in format CSV - {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.csv') else st.session_state.download_file_name+'.csv'}", icon="✅")
+            
+            # JSON download button
+            if st.download_button(label=":material/download: Download modified dataset as JSON", data=convert_df_json(st.session_state.dataset),
+                                file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.json') else st.session_state.download_file_name+'.json', 
+                                mime="text/json", type="primary",
+                                use_container_width=True): 
+                st.success(f"Dataset downloaded successfully in format JSON as {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.json') else st.session_state.download_file_name+'.json'}", icon="✅")
+            
+            # Parquet download button
+            if st.download_button(label=":material/download: Download modified dataset as Parquet", data=convert_df_parquet(st.session_state.dataset),
+                                file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.parquet') else st.session_state.download_file_name+'.parquet', 
+                                mime="text/parquet", type="primary",
+                                use_container_width=True): 
+                st.success(f"Dataset downloaded successfully in format Parquet as {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.parquet') else st.session_state.download_file_name+'.parquet'}", icon="✅")
+            
+            # Excel download button
+            if st.download_button(label=":material/download: Download modified dataset as XLSX", data=convert_df_excel(st.session_state.dataset),
+                                file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.xlsx') else st.session_state.download_file_name+'.xlsx', 
+                                mime="text/xlsx", type="primary",
+                                use_container_width=True): 
+                st.success(f"Dataset downloaded successfully in format XLSX as {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.xslx') else st.session_state.download_file_name+'.xslx'}", icon="✅")
+            
+            
+                 
+            
+        else:    # just disabled button (to simulate blockage) and show error message
+            st.button(label=":material/download: Download modified dataset as CSV", 
+                        disabled=True, use_container_width=True)
+            st.button(label=":material/download: Download modified dataset as JSON", 
+                        disabled=True, use_container_width=True)
+            st.button(label=":material/download: Download modified dataset as Parquet", 
+                        disabled=True, use_container_width=True)
+            
+            st.error("Please, write a name for the file to download", icon="🚨")
         
         
         

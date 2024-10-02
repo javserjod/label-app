@@ -46,8 +46,8 @@ def reset_bar_chart_session_state() -> None:
 def reset_common_session_state() -> None:
     # reset common session state variables to default values
     st.session_state.chart_title = ""  
-    st.session_state.x_axis_variable_index = 0
-    st.session_state.y_axis_variable_index = 0
+    st.session_state.x_axis_variable_index = 0    # first index
+    st.session_state.y_axis_variable_index = 1    # second index
     st.session_state.multiselect_y_axis_variable = []
     st.session_state.chart_color_variable_index = 0  
     

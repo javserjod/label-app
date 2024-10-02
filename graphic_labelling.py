@@ -55,10 +55,10 @@ def app():
             
     def save_labels() -> None:
         # save the labels in the dataset
+        if st.session_state.graph_type == "Line Chart":    # show on the top of page the success message, because on the bottom is not possible due to the exception caused by the reset of multiselect
+            st.success("Labels saved successfully! Check the resulting dataset in Edit Data page", icon="✅")
         st.session_state.dataset = st.session_state.labelled_dataset
-        st.success("Labels saved successfully! Check the resulting dataset in Edit Data page", icon="✅") 
         reset_all_session_state()   # reset all charts and labelling variables from session state to default value
-    
         
     #......................LINE CHART...........................................
     def line_chart() -> None:
@@ -77,7 +77,8 @@ def app():
                         default = st.session_state.multiselect_y_axis_variable, on_change=reload_multiselect_y_axis_variable, key="multiselect_y_axis_variable_key",    # multiselect for the columns to be displayed in the line chart
                         placeholder="Choose one or more options")
             with col2:
-                st.button("Add all columns", on_click=line_chart_add_all_columns)
+                st.button("Add all columns", on_click=line_chart_add_all_columns, use_container_width=True, 
+                          help="Shortcut to add all the columns to the line chart")    # select all the variables in the multiselect
 
             if st.session_state.line_chart_toggle_time_series:   # if time series (creating time axis) 
                 # input for the frequency of the data, in Hertz
@@ -208,7 +209,9 @@ def app():
                                 max_selections=1, default=st.session_state.currently_selected_class, on_change= reload_currently_activated_class, key="currently_selected_class_key")    # select the x-axis variable when no time series
             
             with col3:
-                st.button(":wastebasket: Delete classes options", on_click= delete_classes_options)    # delete all classes options
+                st.button(":wastebasket: Delete classes options", on_click= delete_classes_options,
+                          use_container_width=True,
+                          help="Delete from the activated class selector all the classes added before")    # delete all classes options
 
 
             _, col1, col2 = st.columns([0.22, 0.5, 1], vertical_alignment="bottom")
@@ -220,13 +223,17 @@ def app():
                 st.toggle(":eye: Show the colors of the classes on the graph", value=st.session_state.chart_toggle_color, on_change=reload_chart_toggle_color,
                           help="Selecting this option will show the colors of the classes in the line chart")    # toggle for showing colors in the line chart
 
+            if len(st.session_state.label_column) < 1:   # bug fix (error after resetting session state, when already labelled and change from edit Edit Data to Graphic Labelling)
+                    st.session_state.label_column = [""]*st.session_state.dataset.shape[0]
+                    
             # button to apply the class to the samples
             if st.session_state.currently_selected_class != [] and st.session_state.selected_data.selection.points != []:   # if at least one sample is selected and a class is activated   
-                if st.button(f"Confirm labelling of interval with activated class", on_click=label_selected_data_line_chart,
-                             type="primary"):   # label selected data with activated class from label options
-                        st.success("Success in labelling the selected data", icon="✅")            
+                if st.button(f"Confirm preview of labelling for selected samples with activated class", on_click=label_selected_data_line_chart,
+                             type="primary", use_container_width=True):   # label selected data with activated class from label options
+                    st.success("Success in labelling the selected data", icon="✅")            
             else:
-                st.button(f"Confirm labelling of interval with activated class", disabled=True, type="primary",
+                st.button(f"Confirm preview of labelling for selected samples with activated class", disabled=True, type="primary",
+                            use_container_width=True,
                             help="Only clickable if a data samples interval is selected and a class for the label is activated")   # label selected data with activated class from label options
         
             # default name variations if already used
@@ -243,8 +250,8 @@ def app():
                 st.error("Please, write a valid name for the label column... It can't be duplicated and must contain at least one alphanumeric character", icon="🚨")
     
             # save labels button
-            st.button("Save labels", on_click= save_labels, type="primary")   # save changes: modify the dataset and show success message
-
+            st.button("Save labels", on_click=save_labels, type="primary", use_container_width=True)   # save changes: modify the dataset and show success message
+                 # success message inside the callback (shows on the top of the page)
             
         except Exception as e:
             #st.error(e)
@@ -296,9 +303,11 @@ def app():
         
     def label_selected_data_line_chart() -> None:
         # label the selected data with the activated class and add color shape to plot in line chart
+        # label data (preliminary, so the dataset in Edit Data is not modified)
         for point in st.session_state.selected_data.selection.points:
             st.session_state.label_column[point['point_index']] = st.session_state.currently_selected_class[0]    # label the selected data with the activated class
-        #add info for colored rectangle to plot next time
+        
+        # add info for colored rectangle to plot next time
         if st.session_state.line_chart_toggle_time_series:   # if time series
             st.session_state.line_chart_painting_time_series.append([st.session_state.line_chart_time_axis[st.session_state.selected_data.selection.points[0]['point_index']], 
                                                                     st.session_state.line_chart_time_axis[st.session_state.selected_data.selection.points[-1]['point_index']], 
@@ -309,6 +318,8 @@ def app():
                                                                 max(point['x'] for point in st.session_state.selected_data.selection.points), 
                                                                 st.session_state.currently_selected_class[0],
                                                                 st.session_state.color_picker])
+            
+        st.success("Showing preliminary labelling on the graph and in the table below", icon="✅")    # success message
 
     #.............................................................................
 
@@ -346,7 +357,10 @@ def app():
             
             fig = go.Figure()
             
-            if st.session_state.toggle_color_label_variable:   # if toggle is selected, use new label column as color
+            if len(st.session_state.label_column) < 1:   # bug fix (error after resetting session state, when already labelled and change from edit Edit Data to Graphic Labelling)
+                    st.session_state.label_column = [""]*st.session_state.dataset.shape[0]
+                    
+            if st.session_state.toggle_color_label_variable:   # if toggle is selected, use new label column as color   
                 groups = list(set(st.session_state.label_column))    # minimun 1 group, the empty string
                 for group in groups:    # add a trace for each label (if user selects non categorical column, there will be many traces)
                     idx_group = [index for index,value in enumerate(st.session_state.label_column) if value == group]    # indexes of samples labelled with the same class
@@ -428,7 +442,9 @@ def app():
                                 max_selections=1, default=st.session_state.currently_selected_class, on_change= reload_currently_activated_class, key="currently_selected_class_key")
             
             with col3:
-                st.button(":wastebasket: Delete classes options", on_click= delete_classes_options)    # delete all classes options
+                st.button(":wastebasket: Delete classes options", on_click= delete_classes_options,
+                          use_container_width=True,
+                          help="Delete from the activated class selector all the classes added before")    # delete all classes options
 
             if st.session_state.toggle_color_label_variable:    # only if color is new label column
                 try:
@@ -452,12 +468,13 @@ def app():
 
             # button to apply the class to the samples
             if st.session_state.currently_selected_class != [] and st.session_state.selected_data.selection.points != []:   # if at least one sample is selected and a class is activated   
-                if st.button(f"Confirm labelling of interval with activated class", on_click=label_selected_data_scatter_plot,
-                                type="primary"):   # label selected data with activated class from label options
-                    st.success("Success in labelling the selected data", icon="✅")            
-            else:
-                st.button(f"Confirm labelling of selected samples with activated class", disabled=True, type="primary",
-                            help="Only clickable if any data sample is selected and a class for the label is activated")   # label selected data with activated class from label options
+                if st.button(f"Confirm preview of labelling for selected samples with activated class", on_click=label_selected_data_scatter_plot,
+                                type="primary", use_container_width=True):   # label selected data with activated class from label options
+                    st.success("Showing preliminary labelling on the graph and in the table below", icon="✅")            
+            else:   # disabled button, just to denote blockage
+                st.button(f"Confirm preview of labelling for selected samples with activated class", disabled=True, type="primary",
+                            help="Only clickable if any data sample is selected and a class for the label is activated",
+                            use_container_width=True) 
         
             # default name variations if already used
             if st.session_state.label_column_name=="label_column" and "label_column" in st.session_state.dataset.columns.tolist():  
@@ -466,22 +483,23 @@ def app():
             # preliminary labelled dataset as data editor
             st.session_state.labelled_dataset = st.data_editor(pd.concat([st.session_state.dataset, pd.DataFrame(st.session_state.label_column, columns=[st.session_state.label_column_name])], axis=1),
                                                                 use_container_width = True)
+            
             # text input for the name of the label column
             st.session_state.label_column_name = st.text_input("Label column name:", value=st.session_state.label_column_name, 
                                                                 on_change=reload_label_column_name, key="label_column_name_key")
             if st.session_state.label_column_name_key in st.session_state.dataset.columns.tolist() or not any(char.isalnum() for char in st.session_state.label_column_name_key):
                 st.error("Please, write a valid name for the label column... It can't be duplicated and must contain at least one alphanumeric character", icon="🚨")
 
-            # save labels button
-            st.button("Save labels", on_click= save_labels, type="primary")   # save changes: modify the dataset and show success message
-
+            # save labels button (initially there was a on_click callback, but a problem with the label column made it not work after labelling)
+            if st.button("Save labels", on_click=save_labels, type="primary",
+                         use_container_width=True):   # save changes: modify the dataset and show success message
+                st.success("Labels saved successfully! Check the resulting dataset in Edit Data page", icon="✅") 
+                
         except Exception as e:
             #st.error(e)
             st.error("Please, select correct parameters to draw the scatter plot... Problem: " + str(e), icon="🚨")    # if any error occurs, show message
         
       
-      
-        
     def reload_x_axis_variable_index() -> None:
         # reload the index of column that will be used as x axis
         st.session_state.x_axis_variable_index = st.session_state.dataset.columns.tolist().index(st.session_state.x_axis)
@@ -622,7 +640,9 @@ def app():
                                 max_selections=1, default=st.session_state.currently_selected_class, on_change= reload_currently_activated_class, key="currently_selected_class_key")
             
             with col3:
-                st.button(":wastebasket: Delete classes options", on_click= delete_classes_options)    # delete all classes options
+                st.button(":wastebasket: Delete classes options", on_click= delete_classes_options,
+                          use_container_width=True, 
+                          help="Delete from the activated class selector all the classes added before")    # delete all classes options
 
 
             _, col1, col2 = st.columns([0.22, 0.5, 1], vertical_alignment="bottom")
@@ -633,14 +653,18 @@ def app():
             with col2:
                 st.toggle(":eye: Show the colors of the classes on the graph", value=st.session_state.chart_toggle_color, on_change=reload_chart_toggle_color,
                             help="Selecting this option will show the colors of the classes in the bar chart")    # toggle for showing colors in the bar chart
-
+                
+            if len(st.session_state.label_column) < 1:   # bug fix (error after resetting session state, when already labelled and change from edit Edit Data to Graphic Labelling)
+                    st.session_state.label_column = [""]*st.session_state.dataset.shape[0]
+                    
             # button to apply the class to the samples
             if st.session_state.currently_selected_class != [] and st.session_state.selected_data.selection.points != []:   # if at least one sample is selected and a class is activated   
-                if st.button(f"Confirm labelling of interval with activated class", on_click=label_selected_data_bar_chart,
-                                type="primary"):   # label selected data with activated class from label options
-                    st.success("Success in labelling the selected data", icon="✅")            
-            else:
-                st.button(f"Confirm labelling of selected samples with activated class", disabled=True, type="primary",
+                if st.button(f"Confirm preview of labelling for selected samples with activated class", on_click=label_selected_data_bar_chart,
+                                type="primary", use_container_width=True):   # label selected data with activated class from label options
+                    st.success("Showing preliminary labelling on the graph and in the table below", icon="✅")            
+            else:    # disabled button, just to denote blockage
+                st.button(f"Confirm preview of labelling for selected samples with activated class", disabled=True, type="primary",
+                            use_container_width=True,
                             help="Only clickable if any data sample is selected and a class for the label is activated")   # label selected data with activated class from label options
         
             # default name variations if already used
@@ -657,8 +681,9 @@ def app():
                 st.error("Please, write a valid name for the label column... It can't be duplicated and must contain at least one alphanumeric character", icon="🚨")
 
             # save labels button
-            st.button("Save labels", on_click= save_labels, type="primary")   # save changes: modify the dataset and show success message
-
+            if st.button("Save labels", on_click= save_labels, type="primary", use_container_width=True):   # save changes: modify the dataset and show success message
+                st.success("Labels saved successfully! Check the resulting dataset in Edit Data page", icon="✅")
+                
         except Exception as e:
             #st.error(e)
             st.error("Please, select correct parameters to draw the bar chart... Problem: " + str(e), icon="🚨")    # if any error occurs, show message

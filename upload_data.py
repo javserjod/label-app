@@ -13,7 +13,11 @@ def app():
         st.session_state.original_dataset = pd.read_csv(uploaded_file)
         st.session_state.dataset = st.session_state.original_dataset.copy()  # copy the original dataset
         st.session_state.file_name =  uploaded_file.name
-    
+        
+        # save the name of the file to be downloaded, removing its extension, whatever it is
+        dot_index = st.session_state.file_name.rfind(".")    # find the index of last dot in the file name
+        st.session_state.download_file_name = st.session_state.file_name[:dot_index] + "_modified"  # default name of the file to be downloaded (used in Data Edit)
+
         #reset graph type selection in graphic labelling
         st.session_state.graph_selectbox_index = 0
         # reset all charts variables from session state to default value

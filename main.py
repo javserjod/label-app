@@ -29,7 +29,10 @@ if "graph_selectbox_index" not in st.session_state:       # to store the index o
 if "filtered_dataset" not in st.session_state:      # to store the filtered dataset temporary
     st.session_state.filtered_dataset = None
     
-    
+if "download_file_name" not in st.session_state:    # to store the name of the file to be downloaded
+    st.session_state.download_file_name = None      # assign default value when uploading dataset
+
+   
 # line chart session state variables ...............................................
     
 if "line_chart_toggle_time_series" not in st.session_state:
@@ -117,7 +120,7 @@ if "x_axis_variable_index" not in st.session_state:
     st.session_state.x_axis_variable_index = 0       # default value
        
 if "y_axis_variable_index" not in st.session_state:
-    st.session_state.y_axis_variable_index = 0       # default value
+    st.session_state.y_axis_variable_index = 1       # default value (different from x index at first, so the chart is more informative)
     
 if "multiselect_y_axis_variable" not in st.session_state:
     st.session_state.multiselect_y_axis_variable = []       # default value

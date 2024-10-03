@@ -68,8 +68,9 @@ def app():
     
     def save_filtered_dataset() -> None:
         # save the filtered dataset in the session state variable. Used on_click inside Conditional Filtering expander
-        st.session_state.dataset = st.session_state.filtered_dataset         # assign to current dataset the filtered one
-        st.session_state.filtered_dataset = None       # reset the filtered dataset, save memory
+        st.session_state.dataset = st.session_state.filtered_dataset         # dataset var points to the filtered one, O(1)
+        #st.session_state.dataset = st.session_state.filtered_dataset.copy()   # direct assigment is faster than copy O(n)
+        st.session_state.filtered_dataset = None       # this variable is now pointing to None. Only dataset is pointing to the filtered dataset
         st.success("Conditional filtering applied successfully. Dataset updated", icon="✅")
  
     #---------------------------- PAGE ------------------------------#
@@ -79,7 +80,8 @@ def app():
         st.subheader(f"File name: {st.session_state.file_name}")
         
         st.data_editor(st.session_state.dataset,
-                        use_container_width = True,
+                        use_container_width = True,  
+                        hide_index = False,        # show the index column
                         num_rows = "dynamic",      # dynamic -> no indexes but allows adding rows with a click and deleting selected rows
                         on_change=reload_data_editor,   # to reload when edited cells, or added or deleted rows
                         key="data_editor_key")     # key contains only modifications to the dataset
@@ -102,11 +104,11 @@ def app():
             size_in_kb = f"{current_memory_usage/(1024):.2f}"
             size_in_mb = f"{current_memory_usage/(1024**2):.2f}"
             if float(size_in_mb) > 1:   # use MB
-                st.metric("Size of dataset in memory", value=size_in_mb+" MB" if float(size_in_mb) > 1 else size_in_kb+" kB",
+                st.metric("Size of dataset in memory", value=size_in_mb+" MB",
                         delta=f"{(diff_memory_usage)/(1024**2):.2f}" if diff_memory_usage != 0 else None,
                         help="Size in memory after loading the file, which may differ from the actual file size due to Pandas conversion") 
             else:    # use kB
-                st.metric("Size of dataset in memory", value=size_in_mb+" MB" if float(size_in_mb) > 1 else size_in_kb+" kB",
+                st.metric("Size of dataset in memory", value=size_in_kb+" kB",
                         delta=f"{(diff_memory_usage)/(1024):.2f}" if diff_memory_usage != 0 else None,
                         help="Size in memory after loading the file, which may differ from the actual file size due to Pandas conversion")
                 
@@ -256,13 +258,13 @@ def app():
                         
         with st.expander("Conditional filtering"):
             with st.form("conditional_filtering_form"):
-                st.write("Keep the samples that meet the condition in the selected column according to the logic operator and value given.")
+                st.write("Keep the samples that meet the condition in the selected column according to the comparison operator and value given.")
                 st.selectbox("Select the column to apply the condition:", options=get_current_headers(),
                              index=None, placeholder="Choose a variable",
                              key="column_to_filter")
-                st.multiselect("Select the condition to apply:", options=["==", "!=", ">", "<", ">=", "<="],
-                               default=None, key="condition_to_apply", placeholder="Choose one logic operator",
-                               help="Select one logic operator to apply to the selected column")
+                st.multiselect("Select the operator to apply:", options=["==", "!=", ">", "<", ">=", "<="],
+                               default=None, key="condition_to_apply", placeholder="Choose one comparison operator",
+                               help="Select one comparison operator to apply to the selected column")
                 st.text_input("Write the value to compare:", placeholder="Value to compare",
                              key="value_to_compare", value="", 
                              help="Write the value to compare with filter the column using the logic operator")
@@ -280,7 +282,7 @@ def app():
                                     raise ValueError(f"Something went wrong with the query: `{st.session_state.column_to_filter}` {st.session_state.condition_to_apply[0]} \"{st.session_state.value_to_compare}\"")
                             
                             else:   # data type is not object (empty string as value not allowed)
-                                if st.session_state.value_to_compare == "":   # if left empty, error
+                                if st.session_state.value_to_compare == "":   # if left empty, indicate the error (this is optional, because an exception would be raised anyway)
                                     raise ValueError("Value to compare cannot be empty if type is not object")
                                 else:   # not empty string, now try conversions
                                     try:
@@ -317,11 +319,11 @@ def app():
                                 size_in_kb_filter = f"{current_memory_usage_filter/(1024):.2f}"
                                 size_in_mb_filter = f"{current_memory_usage_filter/(1024**2):.2f}"
                                 if float(size_in_mb_filter) > 1:   # use MB
-                                    st.metric("Size of filtered dataset in memory", value=size_in_mb_filter+" MB" if float(size_in_mb_filter) > 1 else size_in_kb_filter+" kB",
+                                    st.metric("Size of filtered dataset in memory", value=size_in_mb_filter+" MB",
                                             delta=f"{(diff_memory_usage_filter)/(1024**2):.2f}" if diff_memory_usage_filter != 0 else None,
                                             help="Size in memory after filtering the dataset, which may differ from the actual file size due to Pandas conversion. Difference respect to the current dataset, not the original one") 
                                 else:    # use kB
-                                    st.metric("Size of filtered dataset in memory", value=size_in_mb_filter+" MB" if float(size_in_mb_filter) > 1 else size_in_kb_filter+" kB",
+                                    st.metric("Size of filtered dataset in memory", value=size_in_kb_filter+" kB",
                                             delta=f"{(diff_memory_usage_filter)/(1024):.2f}" if diff_memory_usage_filter != 0 else None,
                                             help="Size in memory after filtering the dataset, which may differ from the actual file size due to Pandas conversion. Difference respect to the current dataset, not the original one")
                             
@@ -345,12 +347,11 @@ def app():
         st.subheader("Download modified dataset")
         
         @st.cache_data
-        def convert_df_csv(df) -> bytes:
+        def convert_df_csv(df) -> str:
             # converts the dataframe to a csv file
             # IMPORTANT: Cache the conversion to prevent computation on every rerun
             return df.to_csv(index=False).encode("utf-8")
                              
-        
         @st.cache_data
         def convert_df_json(df) -> str:
             # converts the dataframe to a json file
@@ -364,20 +365,18 @@ def app():
             return df.to_parquet()
         
         @st.cache_data
-        def convert_df_excel(df) -> bytes:
-            # converts the dataframe to a XLSX file
+        def convert_df_excel(df) -> str:
+            # converts the dataframe to a xlsx file
             # IMPORTANT: Cache the conversion to prevent computation on every rerun
             output = io.BytesIO()
             writer = pd.ExcelWriter(output, engine="xlsxwriter", mode="w")    # download module xlsxwriter
             df.to_excel(writer, index=False, sheet_name="sheet1")   # sheet1 is default name of the sheet
             writer.close()
-            return output.getvalue()    # return the bytes of the file
+            return output.getvalue()    # return the string with the file
             
-        
-          
         def reload_download_file_name() -> None:
             # reloads the download file name when changed
-            st.session_state.download_file_name = st.session_state.download_file_name_key
+            st.session_state.download_file_name = st.session_state.download_file_name_key.strip()  # remove leading and trailing whitespaces
        
         # default name was assigned when uploading dataset
         st.text_input("Name for the downloaded file:", value=st.session_state.download_file_name,
@@ -386,48 +385,68 @@ def app():
             
         st.write("Current selected name: " + st.session_state.download_file_name)   # show the name of the file
         
-        if len(st.session_state.download_file_name_key) > 1:
+        if len(st.session_state.download_file_name_key) > 1 and st.session_state.download_file_name_key not in [".csv", ".json", ".parquet", ".xlsx"]:   # if the name is not empty (and not empty after removing the extension)
+            success_download_format = ""
             
-            # CSV download button
-            if st.download_button(label=":material/download: Download modified dataset as CSV", data=convert_df_csv(st.session_state.dataset),
-                                file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.csv') else st.session_state.download_file_name+'.csv', 
-                                mime="text/csv", type="primary",
-                                use_container_width=True): 
-                st.success(f"Dataset downloaded successfully in format CSV - {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.csv') else st.session_state.download_file_name+'.csv'}", icon="✅")
+            col1, col2 = st.columns(2)
+            with col1:
+                # CSV download button
+                if st.download_button(label=":material/download: Download modified dataset as CSV", data=convert_df_csv(st.session_state.dataset),
+                                    file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.csv') else st.session_state.download_file_name+'.csv', 
+                                    mime="text/csv", type="primary",
+                                    use_container_width=True): 
+                    #st.success(f"Dataset downloaded successfully in format CSV - {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.csv') else st.session_state.download_file_name+'.csv'}", icon="✅")
+                    success_download_format = "CSV"
             
-            # JSON download button
-            if st.download_button(label=":material/download: Download modified dataset as JSON", data=convert_df_json(st.session_state.dataset),
-                                file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.json') else st.session_state.download_file_name+'.json', 
-                                mime="text/json", type="primary",
-                                use_container_width=True): 
-                st.success(f"Dataset downloaded successfully in format JSON as {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.json') else st.session_state.download_file_name+'.json'}", icon="✅")
+            with col2:    
+                # JSON download button
+                if st.download_button(label=":material/download: Download modified dataset as JSON", data=convert_df_json(st.session_state.dataset),
+                                    file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.json') else st.session_state.download_file_name+'.json', 
+                                    mime="text/json", type="primary",
+                                    use_container_width=True): 
+                    #st.success(f"Dataset downloaded successfully in format JSON as {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.json') else st.session_state.download_file_name+'.json'}", icon="✅")
+                    success_download_format = "JSON"
             
-            # Parquet download button
-            if st.download_button(label=":material/download: Download modified dataset as Parquet", data=convert_df_parquet(st.session_state.dataset),
-                                file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.parquet') else st.session_state.download_file_name+'.parquet', 
-                                mime="text/parquet", type="primary",
-                                use_container_width=True): 
-                st.success(f"Dataset downloaded successfully in format Parquet as {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.parquet') else st.session_state.download_file_name+'.parquet'}", icon="✅")
+            col1, col2 = st.columns(2)
+            with col1:    
+                # Parquet download button
+                if st.download_button(label=":material/download: Download modified dataset as Parquet", data=convert_df_parquet(st.session_state.dataset),
+                                    file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.parquet') else st.session_state.download_file_name+'.parquet', 
+                                    mime="text/parquet", type="primary",
+                                    use_container_width=True): 
+                    #st.success(f"Dataset downloaded successfully in format Parquet as {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.parquet') else st.session_state.download_file_name+'.parquet'}", icon="✅")
+                    success_download_format = "Parquet"
             
-            # Excel download button
-            if st.download_button(label=":material/download: Download modified dataset as XLSX", data=convert_df_excel(st.session_state.dataset),
-                                file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.xlsx') else st.session_state.download_file_name+'.xlsx', 
-                                mime="text/xlsx", type="primary",
-                                use_container_width=True): 
-                st.success(f"Dataset downloaded successfully in format XLSX as {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.xslx') else st.session_state.download_file_name+'.xslx'}", icon="✅")
+            with col2:    
+                # Excel XLSX download button
+                if st.download_button(label=":material/download: Download modified dataset as XLSX", data=convert_df_excel(st.session_state.dataset),
+                                    file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.xlsx') else st.session_state.download_file_name+'.xlsx', 
+                                    mime="text/xlsx", type="primary",
+                                    use_container_width=True): 
+                    #st.success(f"Dataset downloaded successfully in format XLSX as {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.xslx') else st.session_state.download_file_name+'.xslx'}", icon="✅")
+                    success_download_format = "XLSX"
             
-            
+            if success_download_format != "":   # if any download was successful
+                st.success(f"Dataset downloaded successfully in format {success_download_format}. Filename, if not repeated: {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.'+success_download_format.lower()) else st.session_state.download_file_name+'.'+success_download_format.lower()}", icon="✅")
                  
             
         else:    # just disabled button (to simulate blockage) and show error message
-            st.button(label=":material/download: Download modified dataset as CSV", 
-                        disabled=True, use_container_width=True)
-            st.button(label=":material/download: Download modified dataset as JSON", 
-                        disabled=True, use_container_width=True)
-            st.button(label=":material/download: Download modified dataset as Parquet", 
-                        disabled=True, use_container_width=True)
+            col1, col2 = st.columns(2)
+            with col1:
+                st.button(label=":material/download: Download modified dataset as CSV", 
+                            disabled=True, use_container_width=True)
+            with col2:
+                st.button(label=":material/download: Download modified dataset as JSON", 
+                            disabled=True, use_container_width=True)
+            col1, col2 = st.columns(2)
+            with col1:
+                st.button(label=":material/download: Download modified dataset as Parquet", 
+                            disabled=True, use_container_width=True)
+            with col2:
+                st.button(label=":material/download: Download modified dataset as XLSX", 
+                            disabled=True, use_container_width=True)
             
-            st.error("Please, write a name for the file to download", icon="🚨")
+            st.error("Please, write a valid name for the file to download", icon="🚨")
         
         
         

@@ -1,5 +1,4 @@
 import streamlit as st
-#import plotly.express as px     # necessary for the plotly chart (quick)
 import plotly.graph_objects as go
 import pandas as pd
 from reset_functions import reset_all_session_state

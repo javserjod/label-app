@@ -120,7 +120,7 @@ if "x_axis_variable_index" not in st.session_state:
     st.session_state.x_axis_variable_index = 0       # default value
        
 if "y_axis_variable_index" not in st.session_state:
-    st.session_state.y_axis_variable_index = 1       # default value (different from x index at first, so the chart is more informative)
+    st.session_state.y_axis_variable_index = 0       # default value
     
 if "multiselect_y_axis_variable" not in st.session_state:
     st.session_state.multiselect_y_axis_variable = []       # default value
@@ -131,7 +131,17 @@ if "chart_color_variable_index" not in st.session_state:
 
 
 
+# app theme control ...............................................
 
+if 'current_app_theme' not in st.session_state:
+    st.session_state.current_app_theme = 'dark'    # start dark mode
+
+
+def theme_button_icon() -> str:
+    # returns right theme button icon according to the session state variable 
+    return ":material/dark_mode:" if st.session_state.current_app_theme == 'dark' else ":material/light_mode:"
+
+    
 #----------------------- APP CONTROL ---------------------------#
 # Create a class to manage the app
 class LabelApp:
@@ -146,6 +156,31 @@ class LabelApp:
 
     def run():
         with st.sidebar:
+            if st.button(label=theme_button_icon(), help="Switch between light and dark mode. Page reruns"):
+                if st.session_state.current_app_theme=='light':    #then change to dark mode
+                    st._config.set_option(f'theme.base', "dark")   # inherit from predefined dark theme
+                    st._config.set_option(f'theme.backgroundColor', "#0E1117")
+                    st._config.set_option(f'theme.primaryColor', "#FF4B4B") 
+                    st._config.set_option(f'theme.secondaryBackgroundColor', "#262730")
+                    st._config.set_option(f'theme.textColor', "#FAFAFA")
+                    st._config.set_option(f'theme.font', "sans serif")
+                    st.session_state.current_app_theme = 'dark'   # change the theme to dark
+                else:   # change to light mode
+                    st._config.set_option(f'theme.base', "light")   # inherit from predefined light theme
+                    #st._config.set_option(f'theme.primaryColor', "#FF4B4B")
+                    #st._config.set_option(f'theme.backgroundColor', "#FFFFFF")
+                    #st._config.set_option(f'theme.secondaryBackgroundColor', "#F0F2F6")
+                    #st._config.set_option(f'theme.textColor' , "#31333F")
+                    # a bit darker than light theme
+                    st._config.set_option('theme.primaryColor', "#CC3B3B")
+                    st._config.set_option('theme.backgroundColor', "#E0E0E0") 
+                    st._config.set_option('theme.secondaryBackgroundColor', "#D0D3DB")  
+                    st._config.set_option('theme.textColor', "#1F2028") 
+                    
+                    st._config.set_option(f'theme.font', "sans serif")
+                    st.session_state.current_app_theme = 'light'   # change the var theme to light 
+                st.rerun()
+            
             app = option_menu(
                 menu_title = "Navigation Menu",
                 menu_icon = "",             # bootstrap icons
@@ -153,6 +188,8 @@ class LabelApp:
                 icons = ["house", "upload", "pencil", "tag", "info-circle"],    # bootstrap icons
                 default_index = 0,      # start index when page is loaded
             )
+            
+                   
 
         if app == "Home":
             home.app()

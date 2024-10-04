@@ -55,6 +55,10 @@ def app():
             st.metric("Size of dataset in memory", value=size_in_mb+" MB" if float(size_in_mb) > 1 else size_in_kb+" kB", 
                       help="Size in memory after loading the file, which may differ from the actual file size due to Pandas conversion")
         
+        st.markdown("######")   # add space between the metrics and the description
+        with st.expander("Show dataset description"):
+            st.dataframe(st.session_state.original_dataset.describe(include="all"), use_container_width = True)
+            
     else:
         st.warning("No file uploaded yet...")
         

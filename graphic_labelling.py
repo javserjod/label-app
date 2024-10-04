@@ -128,6 +128,7 @@ def app():
                         for prev_sel in st.session_state.line_chart_painting_time_series:   # newest appears in foreground layer
                             fig.add_vrect(x0=prev_sel[0], x1=prev_sel[1], 
                                             annotation_text=prev_sel[2], annotation_position="top left", annotation_textangle=90,
+                                            annotation_font_size=18, annotation_font_color="white", annotation_font_weight=600,
                                             line_width=0, fillcolor=prev_sel[3], opacity=1, layer="below")   # add colored rectangle for each label
                             
                     st.session_state.selected_data = st.plotly_chart(fig, key="data_selection_key", on_select="rerun", config=config)   # show and assign selection variable listening
@@ -161,7 +162,8 @@ def app():
                         # add color shapes
                         for prev_sel in st.session_state.line_chart_painting_against:   # newest appears in foreground layer
                             fig.add_vrect(x0=prev_sel[0], x1=prev_sel[1], annotation_text=prev_sel[2], annotation_position="top left", annotation_textangle=90,
-                                        line_width=0, fillcolor=prev_sel[3], opacity=1, layer="below")   # add colored rectangle for each label
+                                            annotation_font_size=18, annotation_font_color="white", annotation_font_weight=600,
+                                            line_width=0, fillcolor=prev_sel[3], opacity=1, layer="below")   # add colored rectangle for each label
                     
                     st.session_state.selected_data = st.plotly_chart(fig, key="data_selection_key", on_select="rerun", config=config)   # show and assign selection variable listening
                 except:
@@ -600,10 +602,12 @@ def app():
                     try:
                         fig.add_vrect(x0=prev_sel[0]-custom_bargap*0.075, x1=prev_sel[1]+custom_bargap*0.075,  
                                         annotation_text=prev_sel[2], annotation_position="top left", annotation_textangle=90,
+                                        annotation_font_size=18, annotation_font_color="white", annotation_font_weight=600,
                                         line_width=0, fillcolor=prev_sel[3], opacity=1, layer="below")   # add colored rectangle for each label
                     except:   
                         fig.add_vrect(x0=prev_sel[0], x1=prev_sel[1],  
                                         annotation_text=prev_sel[2], annotation_position="top left", annotation_textangle=90,
+                                        annotation_font_size=18, annotation_font_color="white", annotation_font_weight=600,
                                         line_width=0, fillcolor=prev_sel[3], opacity=1, layer="below")   # add colored rectangle for each label
     
     

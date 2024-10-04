@@ -113,9 +113,9 @@ def app():
                         help="Size in memory after loading the file, which may differ from the actual file size due to Pandas conversion")
                 
         
-    
-        #st.write(types for types in st.session_state.dataset.dtypes)   # show the data types of the columns
+        st.markdown("######")   # add space between the metrics and the description
         
+        # MODIFY HEADERS
         with st.expander("Modify headers"):
             with st.form("header_form"):
                 
@@ -162,17 +162,65 @@ def app():
                                 st.rerun()   # rerun the app to update the table
                     except Exception as e:
                         st.error("Error while modifying the headers ---- " + str(e), icon="🚨")
+        
+        
+        # ADDITION OF VARIABLE         
+        with st.expander("Add variable column"):
+            with st.form("add_column_form"):
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    st.text_input("Write the name of the variable to add:", placeholder="Write the name of the new variable",
+                                key="column_to_add", help="Write the name of the new column to add to the dataset. Can't be repeated nor empty")
+                with col2:    
+                    st.text_input("Column index where variable is added:", placeholder="Insertion index", value = st.session_state.dataset.shape[1],
+                                key="column_add_index", help="Write the index where the new column will be inserted. If left empty, it will be added at the end of the dataset. Index must be in the intervbal [0, number of columns]") 
+                
+                dtypes_options = ["object", "int64", "float64", "bool", "datetime64"]
+                col1, col2 = st.columns([1, 1])
+                with col1:
+                    st.text_input("Default value of the new column:", placeholder="Insert the default value", value = "",
+                                key="column_add_value", help="Write the default value for the new column. By default, it will be an empty string and try to convert to the dtype selected")     
+                with col2:    
+                    st.selectbox("Select the Pandas dtype of the new column:", options=dtypes_options, index=0,
+                                 placeholder="Choose the Pandas dtype of the new column", key="column_add_dtype",
+                                 help="Select the Pandas dtype of the new column. By default, it will be dtype object")
+                
+                try:
+                    if st.form_submit_button("Confirm addition of new column"):
+                        if st.session_state.column_to_add != "":   # if any name was written
+                            if st.session_state.column_to_add not in get_current_headers():   # if the name is not repeated
+                                try:
+                                    st.session_state.dataset.insert(loc=int(st.session_state.column_add_index),
+                                                                column=st.session_state.column_to_add.strip(),
+                                                                value=pd.Series([st.session_state.column_add_value]*st.session_state.dataset.shape[0], dtype=st.session_state.column_add_dtype),
+                                                                allow_duplicates=False)   # drop the selected column
+                                    # if everything went well
+                                    reset_all_session_state()   # reset all charts and labelling variables from session state to default value
+                                    st.rerun()   # rerun the app to update the table
+                                
+                                except Exception as e:   # delete the just added column if error (if it was added)
+                                    st.session_state.dataset = st.session_state.dataset.drop(st.session_state.column_to_add, axis=1)    # delete the just added column
+                                    raise ValueError(f"Check if the index is an appropiate value, and if the default value is compatible with the dtype selected")
+                            else:
+                                st.error("The name of the new column is already in use. Please, write a different one to proceed", icon="🚨")
+                        else:
+                            st.error("No name assigned to the new column. Please, write one to proceed", icon="🚨")
+                except Exception as e:
+                    st.error("Error while adding the new column ---- " + str(e), icon="🚨")
                     
-                 
+                    
+        # DELETION OF VARIABLE         
         with st.expander("Delete variable column"):
             with st.form("delete_column_form"):
                 st.selectbox("Select the column to delete:", options=get_current_headers(),
                              index=None, placeholder="Choose a variable",
                              key="column_to_delete") 
                 
-                if st.form_submit_button("Confirm deletion"):
+                if st.form_submit_button("Confirm deletion of selected column"):
                     if st.session_state.column_to_delete is not None:
                         st.session_state.dataset = st.session_state.dataset.drop(st.session_state.column_to_delete, axis=1)   # drop the selected column
+                        if st.session_state.dataset.columns.tolist() == []:   # if no columns left, reset the dataset to empty
+                            st.session_state.dataset = st.session_state.dataset[0:0]   # empty dataset
                         # if everything went well
                         reset_all_session_state()   # reset all charts and labelling variables from session state to default value
                         st.rerun()   # rerun the app to update the table
@@ -181,7 +229,7 @@ def app():
                         st.error("No column was selected to delete. Please, select one to proceed.", icon="🚨")
         
         
-        # replace values
+        # REPLACEMENT OF VALUES
         with st.expander("Replace values"):
             with st.form("replace_values_form"):
                 
@@ -218,7 +266,7 @@ def app():
                         
         
         
-        
+        # INSERTION OF NEW SAMPLE
         with st.expander("Insert new sample at chosen index"):
             with st.form("insert_new_sample_form"):
                 st.write("Write values compatible with the column type. Empty strings only available in object columns.")
@@ -255,7 +303,7 @@ def app():
                     except Exception as e:
                         st.error("Error while inserting the new sample ---- " + str(e), icon="🚨")
                         
-                        
+        # CONDITIONAL FILTERING                
         with st.expander("Conditional filtering"):
             with st.form("conditional_filtering_form"):
                 st.write("Keep the samples that meet the condition in the selected column according to the comparison operator and value given.")

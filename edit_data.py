@@ -48,6 +48,7 @@ def app():
                     
                 if val_new == "" and st.session_state.dataset.dtypes[key_col] != "object":   # empty strings only available in object columns. Otherwise, error, don't allow
                     # None value will be on the cell to avoid error and alert the user about it
+                    st.session_state.dataset.at[key_row, key_col] = None   # cahnge value for None
                     raise ValueError(f"cannot convert value \"{val_new}\" to the type of the column, {st.session_state.dataset.dtypes[key_col]}. Replacing with None. Please, correct it before continuing...")
                 else:
                     val_new_conv = pd.Series([val_new]).astype(st.session_state.dataset.dtypes[key_col]).iloc[0]      # try to convert to variable data type
@@ -59,7 +60,7 @@ def app():
                     st.session_state.data_editor_key["edited_rows"] = []   # reset the edited cells list  
             
             except Exception as e:
-                st.error("Error while editing row: "+str(e), icon="🚨") 
+                st.error("Error while editing cell: "+str(e), icon="🚨") 
                 
             
     def get_current_headers() -> list:
@@ -115,53 +116,109 @@ def app():
         
         st.markdown("######")   # add space between the metrics and the description
         
-        # MODIFY HEADERS
-        with st.expander("Modify headers"):
-            with st.form("header_form"):
-                
-                st.write("Write the new headers' names for the dataset:")  
-                
-                written_headers = [None] * len(st.session_state.dataset.columns)   # variable to store text_input values
-                for i in range(0, len(st.session_state.dataset.columns)):
-                    written_headers[i] = st.text_input(f"Header {i}", value = st.session_state.dataset.columns[i])    # stored as strings
+        
+        # HANDLE NA VALUES (DROP AND FILL)
+        with st.expander("Handle NA values"):
+            na_table = pd.DataFrame(st.session_state.dataset.isna().sum(), columns=["NA Count per column"]) # count the number of NA values per column
+            columns_with_na = na_table[na_table.iloc[:, 0] > 0].index.values   # get the columns with NA values
+            if len(columns_with_na) > 0:   # if any column has NA values, this functionality will be available
+                with st.form("handle_na_form"):
+                    col1, col2 = st.columns([1, 1], vertical_alignment="center")
+                    with col1:
+                        # show the number of NA values per column (NaN and None)
+                        st.dataframe(na_table, use_container_width=True)   # show the number of NA values per column
                     
-                new_headers = st.toggle("Move down current headers and insert the new ones?",
-                                        help = "Selecting this option will insert the current headers as the first row, and create new headers with the values given. Not selecting this option will just rename the current headers with the indicated values.")  
-                
-                if st.form_submit_button("Submit changes"):
-                    try:    
-                        if new_headers:    # move down current headers and insert the new ones  
-                            # do type conversion from existing reference row
-                            current_headers = get_current_headers()                 # get the current headers
-                            try:
-                                for i, col in enumerate(current_headers):
-                                    current_headers[i] = pd.Series([col]).astype(st.session_state.dataset.dtypes[col]).iloc[0]      # convert columns names to their type and add to the list
-                            except:
-                                raise ValueError(f"Cannot convert column name \"{col}\" to the type it contains, {st.session_state.dataset.dtypes[col]}")
-                            
-                            '''if len(st.session_state.dataset.values) > 0:                        # conversion only if there's at least one existing row (needed to have a reference for the types)
-                                for i in range(len(st.session_state.dataset.columns)):          # iterate over the previous headers to force type conversion
-                                    if type(current_headers[i]) != str:                         # conversion only if not string
-                                        current_headers[i] = type(st.session_state.dataset.values[0][i])(current_headers[i])   # force the type conversion if not string
-                            '''
-                            st.session_state.dataset = st.session_state.dataset.set_axis(written_headers, axis="columns")    # change the headers to the written ones
-                            st.session_state.dataset = pd.concat([pd.DataFrame([current_headers], columns=written_headers), 
-                                                                    st.session_state.dataset], ignore_index=True)     # join previous headers as first row, resulting in one dataset with default headers
-                            st.session_state.dataset.reset_index(drop=True, inplace=True)   # reset the index of the dataset, so it starts from 0 and goes up consecutive numbers
-                            #st.success("Previous headers are now the first row and new headers were added successfully", icon="✅")   # on top of screen
-                            reset_all_session_state()   # reset all variables from session state to default value
+                    with col2:
+                        if st.form_submit_button("Delete all rows with any NA value", use_container_width=True):
+                            st.session_state.dataset = st.session_state.dataset.dropna()
+                            reset_all_session_state()   # reset all charts and labelling variables from session state to default value
                             st.rerun()   # rerun the app to update the table
                             
-                        else:   # just rename the headers
-                            if written_headers==get_current_headers():   # if the headers are the same, do nothing
-                                st.warning("No changes were made to the headers...", icon="❓")
-                            else:
-                                st.session_state.dataset.columns = written_headers
-                                #st.success("Renaming of headers was successful", icon="✅")
+                        if st.form_submit_button("Delete all columns with any NA value", use_container_width=True):
+                            st.session_state.dataset = st.session_state.dataset.dropna(axis=1)
+                            reset_all_session_state()   # reset all charts and labelling variables from session state to default value
+                            st.rerun()   # rerun the app to update the table
+                    
+                    
+                    st.multiselect("Select one or more columns to fill NA values with chosen values:", options= columns_with_na, 
+                                placeholder="Choose one or more columns", default=None, key="columns_to_fill_na",
+                                help="Select one or more columns that will be filled with the chosen value at any cell with NA value")
+                    
+                    st.text_input("Write the filler value:", placeholder="Filler value",
+                                key="filler_value", value="", help="By default, it will be an empty string")
+                    
+                    if st.form_submit_button("Fill NA values with chosen value"):
+                        if len(st.session_state.columns_to_fill_na) > 0:
+                            try:
+                                for col in st.session_state.columns_to_fill_na:   # just for checking if an error will be raised during type converison, so nothing is changed yet
+                                    try:
+                                        filler_value_conv = pd.Series([st.session_state.filler_value]).astype(st.session_state.dataset.dtypes[col]).iloc[0]
+                                    except:
+                                        raise ValueError(f"Filler value \"{st.session_state.filler_value}\" is not compatible with the type of the column \"{col}\", {st.session_state.dataset.dtypes[col]}")
+                                
+                                for col in st.session_state.columns_to_fill_na:   # actual filling of NA values
+                                    filler_value_conv = pd.Series([st.session_state.filler_value]).astype(st.session_state.dataset.dtypes[col]).iloc[0]
+                                    st.session_state.dataset[col].fillna(value=filler_value_conv, inplace=True)
+                                
+                                # if everything went well
+                                reset_all_session_state()   # reset all charts and labelling variables from session state to default value
+                                st.rerun()   # rerun the app to update the table
+                            except Exception as e:
+                                st.error("Error while filling NA values ---- " + str(e), icon="🚨")
+                        else:
+                            st.error("No column was selected to fill NA values. Please, select one to proceed.", icon="🚨")
+            else:
+                st.info("No NA values in the dataset", icon="✅")
+        
+        # MODIFY HEADERS
+        with st.expander("Modify headers"):
+            if len(st.session_state.dataset.columns) > 0:   # only available if there are columns in the dataset
+                with st.form("header_form"):
+                    st.write("Write the new headers' names for the dataset:")  
+                    
+                    written_headers = [None] * len(st.session_state.dataset.columns)   # variable to store text_input values
+                    for i in range(0, len(st.session_state.dataset.columns)):
+                        written_headers[i] = st.text_input(f"Header {i}", value = st.session_state.dataset.columns[i])    # stored as strings
+                        
+                    new_headers = st.toggle("Move down current headers and insert the new ones?",
+                                            help = "Selecting this option will insert the current headers as the first row, and create new headers with the values given. Not selecting this option will just rename the current headers with the indicated values.")  
+                    
+                    if st.form_submit_button("Submit changes"):
+                        try:    
+                            if new_headers:    # move down current headers and insert the new ones  
+                                # do type conversion from existing reference row
+                                current_headers = get_current_headers()                 # get the current headers
+                                try:
+                                    for i, col in enumerate(current_headers):
+                                        current_headers[i] = pd.Series([col]).astype(st.session_state.dataset.dtypes[col]).iloc[0]      # convert columns names to their type and add to the list
+                                except:
+                                    raise ValueError(f"Cannot convert column name \"{col}\" to the type it contains, {st.session_state.dataset.dtypes[col]}")
+                                
+                                '''if len(st.session_state.dataset.values) > 0:                        # conversion only if there's at least one existing row (needed to have a reference for the types)
+                                    for i in range(len(st.session_state.dataset.columns)):          # iterate over the previous headers to force type conversion
+                                        if type(current_headers[i]) != str:                         # conversion only if not string
+                                            current_headers[i] = type(st.session_state.dataset.values[0][i])(current_headers[i])   # force the type conversion if not string
+                                '''
+                                st.session_state.dataset = st.session_state.dataset.set_axis(written_headers, axis="columns")    # change the headers to the written ones
+                                st.session_state.dataset = pd.concat([pd.DataFrame([current_headers], columns=written_headers), 
+                                                                        st.session_state.dataset], ignore_index=True)     # join previous headers as first row, resulting in one dataset with default headers
+                                st.session_state.dataset.reset_index(drop=True, inplace=True)   # reset the index of the dataset, so it starts from 0 and goes up consecutive numbers
+                                #st.success("Previous headers are now the first row and new headers were added successfully", icon="✅")   # on top of screen
                                 reset_all_session_state()   # reset all variables from session state to default value
                                 st.rerun()   # rerun the app to update the table
-                    except Exception as e:
-                        st.error("Error while modifying the headers ---- " + str(e), icon="🚨")
+                                
+                            else:   # just rename the headers
+                                if written_headers==get_current_headers():   # if the headers are the same, do nothing
+                                    st.warning("No changes were made to the headers...", icon="❓")
+                                else:
+                                    st.session_state.dataset.columns = written_headers
+                                    #st.success("Renaming of headers was successful", icon="✅")
+                                    reset_all_session_state()   # reset all variables from session state to default value
+                                    st.rerun()   # rerun the app to update the table
+                        except Exception as e:
+                            st.error("Error while modifying the headers ---- " + str(e), icon="🚨")
+            else:
+                st.error("No headers to modify. Please, add some columns to the dataset first with the 'Add variable column functionality'", icon="🚨")
         
         
         # ADDITION OF VARIABLE         
@@ -172,8 +229,12 @@ def app():
                     st.text_input("Write the name of the variable to add:", placeholder="Write the name of the new variable",
                                 key="column_to_add", help="Write the name of the new column to add to the dataset. Can't be repeated nor empty")
                 with col2:    
-                    st.text_input("Column index where variable is added:", placeholder="Insertion index", value = st.session_state.dataset.shape[1],
-                                key="column_add_index", help="Write the index where the new column will be inserted. If left empty, it will be added at the end of the dataset. Index must be in the intervbal [0, number of columns]") 
+                    #st.text_input("Column index where variable is added:", placeholder="Insertion index", value = st.session_state.dataset.shape[1],
+                    #            key="column_add_index", help="Write the index where the new column will be inserted. If left empty, it will be added at the end of the dataset. Index must be in the intervbal [0, number of columns]") 
+                    st.slider("Column index where variable is added:", 
+                            min_value=0, max_value=max(1, st.session_state.dataset.shape[1]), # in case the dataset is empty, set the max value to 1
+                            value=max(1, st.session_state.dataset.shape[1]), key="column_add_index",
+                            help="Write the index where the new column will be inserted. If left empty, it will be added at the end of the dataset. Index must be in the intervbal [0, number of columns]")
                 
                 dtypes_options = ["object", "int64", "float64", "bool", "datetime64"]
                 col1, col2 = st.columns([1, 1])
@@ -211,58 +272,70 @@ def app():
                     
         # DELETION OF VARIABLE         
         with st.expander("Delete variable column"):
-            with st.form("delete_column_form"):
-                st.selectbox("Select the column to delete:", options=get_current_headers(),
-                             index=None, placeholder="Choose a variable",
-                             key="column_to_delete") 
-                
-                if st.form_submit_button("Confirm deletion of selected column"):
-                    if st.session_state.column_to_delete is not None:
-                        st.session_state.dataset = st.session_state.dataset.drop(st.session_state.column_to_delete, axis=1)   # drop the selected column
-                        if st.session_state.dataset.columns.tolist() == []:   # if no columns left, reset the dataset to empty
-                            st.session_state.dataset = st.session_state.dataset[0:0]   # empty dataset
-                        # if everything went well
-                        reset_all_session_state()   # reset all charts and labelling variables from session state to default value
-                        st.rerun()   # rerun the app to update the table
-                        #st.success("Column "+st.session_state.column_to_delete+" was deleted successfully", icon="✅")   # on top of screen
-                    else:
-                        st.error("No column was selected to delete. Please, select one to proceed.", icon="🚨")
+            if len(st.session_state.dataset.columns) > 0:   # only available if there are columns in the dataset
+                with st.form("delete_column_form"):
+                    st.selectbox("Select the column to delete:", options=get_current_headers(),
+                                index=None, placeholder="Choose a variable",
+                                key="column_to_delete") 
+                    
+                    if st.form_submit_button("Confirm deletion of selected column"):
+                        if st.session_state.column_to_delete is not None:
+                            st.session_state.dataset = st.session_state.dataset.drop(st.session_state.column_to_delete, axis=1)   # drop the selected column
+                            if st.session_state.dataset.columns.tolist() == []:   # if no columns left, reset the dataset to empty
+                                st.session_state.dataset = st.session_state.dataset[0:0]   # empty dataset
+                            # if everything went well
+                            reset_all_session_state()   # reset all charts and labelling variables from session state to default value
+                            st.rerun()   # rerun the app to update the table
+                            #st.success("Column "+st.session_state.column_to_delete+" was deleted successfully", icon="✅")   # on top of screen
+                        else:
+                            st.error("No column was selected to delete. Please, select one to proceed.", icon="🚨")
+            else:
+                st.error("No columns to delete. Please, add some columns to the dataset first with the 'Add variable column functionality'", icon="🚨")
         
         
         # REPLACEMENT OF VALUES
         with st.expander("Replace values"):
-            with st.form("replace_values_form"):
-                
-                # text inputs for the value to be replaced and the replacement value
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.text_input("Write the value to be replaced:", placeholder="Value to be replaced",
-                                key="value_replaced", value="", help="By default, it will be an empty string")   
-                with col2:
-                    st.text_input("Write the replacement value:", placeholder="Replacement value",
-                             key="replacement_value", value="", help="By default, it will be an empty string")
-                
-                # multiselect for the columns where the replacement will be applied
-                st.multiselect("Select the columns to apply the replacement:", options=get_current_headers(),
-                               default=None, key="columns_where_replace", placeholder="Columns where replacement will be applied",
-                               help="Select one or more columns to apply the replacement")
-                
-                if st.form_submit_button("Confirm replacement"):
-                    if len(st.session_state.columns_where_replace) > 0:    # any column where replace
-                        try:
-                            for col in st.session_state.columns_where_replace:
-                                # replacement. Make a conversion to the type of the column
-                                val_replaced_conv = pd.Series([st.session_state.value_replaced]).astype(st.session_state.dataset.dtypes[col]).iloc[0]
-                                replacement_val_conv = pd.Series([st.session_state.replacement_value]).astype(st.session_state.dataset.dtypes[col]).iloc[0]
-                                st.session_state.dataset[col] = st.session_state.dataset[col].replace(val_replaced_conv, replacement_val_conv)   # replace the values                                                
-                            # if everything went well
-                            reset_all_session_state()   # reset all charts and labelling variables from session state to default value
-                            st.rerun()   # rerun the app to update the table
-                        except Exception as e:
-                            st.error("Error while replacing the values ---- " + str(e), icon="🚨")
+            if st.session_state.dataset.shape[0] > 0:   # only available if there are rows in the dataset
+                with st.form("replace_values_form"):
                     
-                    else:
-                        st.error("No column was selected to perform the replacement", icon="🚨")
+                    # text inputs for the value to be replaced and the replacement value
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.text_input("Write the value to be replaced:", placeholder="Value to be replaced",
+                                    key="value_replaced", value="", help="By default, it will be an empty string")   
+                    with col2:
+                        st.text_input("Write the replacement value:", placeholder="Replacement value",
+                                key="replacement_value", value="", help="By default, it will be an empty string")
+                    
+                    # multiselect for the columns where the replacement will be applied
+                    st.multiselect("Select the columns to apply the replacement:", options=get_current_headers(),
+                                default=None, key="columns_where_replace", placeholder="Columns where replacement will be applied",
+                                help="Select one or more columns to apply the replacement")
+                    
+                    if st.form_submit_button("Confirm replacement"):
+                        if len(st.session_state.columns_where_replace) > 0:    # any column where replace
+                            try:
+                                for col in st.session_state.columns_where_replace:
+                                    # replacement. Make a conversion to the type of the column
+                                    try:
+                                        val_replaced_conv = pd.Series([st.session_state.value_replaced]).astype(st.session_state.dataset.dtypes[col]).iloc[0]
+                                    except:
+                                        raise ValueError(f"Replaced value \"{st.session_state.value_replaced}\" can't be in column \"{col}\" because it's not compatible with its type {st.session_state.dataset.dtypes[col]}")
+                                    try:
+                                        replacement_val_conv = pd.Series([st.session_state.replacement_value]).astype(st.session_state.dataset.dtypes[col]).iloc[0]
+                                    except:
+                                        raise ValueError(f"Replacement value \"{st.session_state.value_replaced}\" is not compatible with the type of the column \"{col}\", {st.session_state.dataset.dtypes[col]}")
+                                    st.session_state.dataset[col] = st.session_state.dataset[col].replace(val_replaced_conv, replacement_val_conv)   # replace the values                                                
+                                # if everything went well
+                                reset_all_session_state()   # reset all charts and labelling variables from session state to default value
+                                st.rerun()   # rerun the app to update the table
+                            except Exception as e:
+                                st.error("Error while replacing the values ---- " + str(e), icon="🚨")
+                        
+                        else:
+                            st.error("No column was selected to perform the replacement", icon="🚨")
+            else:
+                st.error("No cells to replace values. Please, add some rows to the dataset first with the 'Insert new sample at chosen index' functionality or by clicking on the table directly. Columns are needed too, in case there isn't anyone, add one with 'Add variable column'", icon="🚨")
                         
         
         
@@ -305,90 +378,92 @@ def app():
                         
         # CONDITIONAL FILTERING                
         with st.expander("Conditional filtering"):
-            with st.form("conditional_filtering_form"):
-                st.write("Keep the samples that meet the condition in the selected column according to the comparison operator and value given.")
-                st.selectbox("Select the column to apply the condition:", options=get_current_headers(),
-                             index=None, placeholder="Choose a variable",
-                             key="column_to_filter")
-                st.multiselect("Select the operator to apply:", options=["==", "!=", ">", "<", ">=", "<="],
-                               default=None, key="condition_to_apply", placeholder="Choose one comparison operator",
-                               help="Select one comparison operator to apply to the selected column")
-                st.text_input("Write the value to compare:", placeholder="Value to compare",
-                             key="value_to_compare", value="", 
-                             help="Write the value to compare with filter the column using the logic operator")
-                    
-                if st.form_submit_button("Simulate the filtering and preview the changes", help="This will not apply the changes to the dataset yet. A new button will appear, which is the one that will apply the changes."):   # simulate the filtering
-                    try:
-                        if st.session_state.column_to_filter != None and len(st.session_state.condition_to_apply) > 0:
-                            if st.session_state.dataset.dtypes[st.session_state.column_to_filter] == "object":   # accept any value to compare, whatever type it is
-                                # no manual conversion needed
-                                # use backticks around column name (mandatory if contains spaces, punctuations, starting with digits...). Value to compare (already string) around double quotes
-                                query_str = f"`{st.session_state.column_to_filter}` {st.session_state.condition_to_apply[0]} \"{st.session_state.value_to_compare}\""
-                                try:  # directly make the query
-                                    st.session_state.filtered_dataset = st.session_state.dataset.query(query_str)   # filter the dataset  
-                                except:   # error while filtering
-                                    raise ValueError(f"Something went wrong with the query: `{st.session_state.column_to_filter}` {st.session_state.condition_to_apply[0]} \"{st.session_state.value_to_compare}\"")
-                            
-                            else:   # data type is not object (empty string as value not allowed)
-                                if st.session_state.value_to_compare == "":   # if left empty, indicate the error (this is optional, because an exception would be raised anyway)
-                                    raise ValueError("Value to compare cannot be empty if type is not object")
-                                else:   # not empty string, now try conversions
-                                    try:
-                                        value_to_compare_conv = pd.Series([st.session_state.value_to_compare]).astype(st.session_state.dataset.dtypes[st.session_state.column_to_filter]).iloc[0]   # convert the value to the type of the column
-                                        # use backticks around column name (mandatory if contains spaces, punctuations, starting with digits...)
-                                        query_str = f"`{st.session_state.column_to_filter}` {st.session_state.condition_to_apply[0]} {value_to_compare_conv}"   # create the query string
-                                        try:   # make the query
-                                            st.session_state.filtered_dataset = st.session_state.dataset.query(query_str)   # filter the dataset   
-                                            st.session_state.filtered_dataset.reset_index(drop=True, inplace=True)   # reset the index of the dataset, so it starts from 0 and goes up consecutive numbers   
-                                        except:   # error while filtering
-                                            raise ValueError(f"Something went wrong with the query: {query_str}")
-
-                                    except:    # error while converting
-                                        raise ValueError(f"Cannot convert value \"{st.session_state.value_to_compare}\" to the type of the column \"{st.session_state.column_to_filter}\", {st.session_state.dataset.dtypes[st.session_state.column_to_filter]}")
-                            
-                            st.dataframe(st.session_state.filtered_dataset, use_container_width=True)   # preview of the changes
-                            
-                            # metrics for the future filtered dataset, comparing with the current dataset
-                            col1, col2, col3 = st.columns(3)
-                            with col1:
-                                delta_rows_filter = st.session_state.filtered_dataset.shape[0] - st.session_state.dataset.shape[0]   # difference in number of rows regarding the current dataset
-                                st.metric("Number of rows after filtering", value=st.session_state.filtered_dataset.shape[0],
-                                            delta=delta_rows_filter if delta_rows_filter != 0 else None,
-                                            help="Difference respect to the current dataset, not the original one")
-                            with col2:     # this won't change, but we add it for consistency
-                                delta_cols_filter = st.session_state.filtered_dataset.shape[1] - st.session_state.dataset.shape[1]   # difference in number of columns regarding the current dataset
-                                st.metric("Number of columns after filtering", value=st.session_state.filtered_dataset.shape[1],
-                                            delta=delta_cols_filter if delta_cols_filter != 0 else None,
-                                            help="Difference respect to the current dataset, not the original one")
-                            with col3:
-                                original_memory_usage_filter=st.session_state.dataset.memory_usage(deep=True).sum()   # sum of memory usage of each column = total (BYTES)
-                                current_memory_usage_filter=st.session_state.filtered_dataset.memory_usage(deep=True).sum()
-                                diff_memory_usage_filter = current_memory_usage_filter - original_memory_usage_filter
-                                size_in_kb_filter = f"{current_memory_usage_filter/(1024):.2f}"
-                                size_in_mb_filter = f"{current_memory_usage_filter/(1024**2):.2f}"
-                                if float(size_in_mb_filter) > 1:   # use MB
-                                    st.metric("Size of filtered dataset in memory", value=size_in_mb_filter+" MB",
-                                            delta=f"{(diff_memory_usage_filter)/(1024**2):.2f}" if diff_memory_usage_filter != 0 else None,
-                                            help="Size in memory after filtering the dataset, which may differ from the actual file size due to Pandas conversion. Difference respect to the current dataset, not the original one") 
-                                else:    # use kB
-                                    st.metric("Size of filtered dataset in memory", value=size_in_kb_filter+" kB",
-                                            delta=f"{(diff_memory_usage_filter)/(1024):.2f}" if diff_memory_usage_filter != 0 else None,
-                                            help="Size in memory after filtering the dataset, which may differ from the actual file size due to Pandas conversion. Difference respect to the current dataset, not the original one")
-                            
-                            # second button to apply the changes
-                            if st.form_submit_button("Apply changes to dataset", 
-                                                     help=":warning: This will remove the rest of the samples",
-                                                     on_click=save_filtered_dataset):   # save in the state session variable the filtering made
-                                # update the dataset with the filtered one
-                                reset_all_session_state()   # reset all charts and labelling variables from session state to default value
-                                st.rerun()   # rerun the app to update the table   
-        
-                        else:
-                            raise ValueError("No column or condition was selected to perform the filtering")
+            if st.session_state.dataset.shape[0] > 0 and st.session_state.dataset.shape[1] > 0:   # only available if there are rows and columns in the dataset
+                with st.form("conditional_filtering_form"):
+                    st.write("Keep the samples that meet the condition in the selected column according to the comparison operator and value given.")
+                    st.selectbox("Select the column to apply the condition:", options=get_current_headers(),
+                                index=None, placeholder="Choose a variable",
+                                key="column_to_filter")
+                    st.multiselect("Select the operator to apply:", options=["==", "!=", ">", "<", ">=", "<="],
+                                default=None, key="condition_to_apply", placeholder="Choose one comparison operator",
+                                help="Select one comparison operator to apply to the selected column")
+                    st.text_input("Write the value to compare:", placeholder="Value to compare",
+                                key="value_to_compare", value="", 
+                                help="Write the value to compare with filter the column using the logic operator")
                         
-                    except Exception as e:   # catch any error raised
-                        st.error("Error while filtering the dataset ---- " + str(e), icon="🚨")            
-                                    
+                    if st.form_submit_button("Simulate the filtering and preview the changes", help="This will not apply the changes to the dataset yet. A new button will appear, which is the one that will apply the changes."):   # simulate the filtering
+                        try:
+                            if st.session_state.column_to_filter != None and len(st.session_state.condition_to_apply) > 0:
+                                if st.session_state.dataset.dtypes[st.session_state.column_to_filter] == "object":   # accept any value to compare, whatever type it is
+                                    # no manual conversion needed
+                                    # use backticks around column name (mandatory if contains spaces, punctuations, starting with digits...). Value to compare (already string) around double quotes
+                                    query_str = f"`{st.session_state.column_to_filter}` {st.session_state.condition_to_apply[0]} \"{st.session_state.value_to_compare}\""
+                                    try:  # directly make the query
+                                        st.session_state.filtered_dataset = st.session_state.dataset.query(query_str)   # filter the dataset  
+                                    except:   # error while filtering
+                                        raise ValueError(f"Something went wrong with the query: `{st.session_state.column_to_filter}` {st.session_state.condition_to_apply[0]} \"{st.session_state.value_to_compare}\"")
+                                
+                                else:   # data type is not object (empty string as value not allowed)
+                                    if st.session_state.value_to_compare == "":   # if left empty, indicate the error (this is optional, because an exception would be raised anyway)
+                                        raise ValueError("Value to compare cannot be empty if type is not object")
+                                    else:   # not empty string, now try conversions
+                                        try:
+                                            value_to_compare_conv = pd.Series([st.session_state.value_to_compare]).astype(st.session_state.dataset.dtypes[st.session_state.column_to_filter]).iloc[0]   # convert the value to the type of the column
+                                            # use backticks around column name (mandatory if contains spaces, punctuations, starting with digits...)
+                                            query_str = f"`{st.session_state.column_to_filter}` {st.session_state.condition_to_apply[0]} {value_to_compare_conv}"   # create the query string
+                                            try:   # make the query
+                                                st.session_state.filtered_dataset = st.session_state.dataset.query(query_str)   # filter the dataset   
+                                                st.session_state.filtered_dataset.reset_index(drop=True, inplace=True)   # reset the index of the dataset, so it starts from 0 and goes up consecutive numbers   
+                                            except:   # error while filtering
+                                                raise ValueError(f"Something went wrong with the query: {query_str}")
+
+                                        except:    # error while converting
+                                            raise ValueError(f"Cannot convert value \"{st.session_state.value_to_compare}\" to the type of the column \"{st.session_state.column_to_filter}\", {st.session_state.dataset.dtypes[st.session_state.column_to_filter]}")
+                                
+                                st.dataframe(st.session_state.filtered_dataset, use_container_width=True)   # preview of the changes
+                                
+                                # metrics for the future filtered dataset, comparing with the current dataset
+                                col1, col2, col3 = st.columns(3)
+                                with col1:
+                                    delta_rows_filter = st.session_state.filtered_dataset.shape[0] - st.session_state.dataset.shape[0]   # difference in number of rows regarding the current dataset
+                                    st.metric("Number of rows after filtering", value=st.session_state.filtered_dataset.shape[0],
+                                                delta=delta_rows_filter if delta_rows_filter != 0 else None,
+                                                help="Difference respect to the current dataset, not the original one")
+                                with col2:     # this won't change, but we add it for consistency
+                                    delta_cols_filter = st.session_state.filtered_dataset.shape[1] - st.session_state.dataset.shape[1]   # difference in number of columns regarding the current dataset
+                                    st.metric("Number of columns after filtering", value=st.session_state.filtered_dataset.shape[1],
+                                                delta=delta_cols_filter if delta_cols_filter != 0 else None,
+                                                help="Difference respect to the current dataset, not the original one")
+                                with col3:
+                                    original_memory_usage_filter=st.session_state.dataset.memory_usage(deep=True).sum()   # sum of memory usage of each column = total (BYTES)
+                                    current_memory_usage_filter=st.session_state.filtered_dataset.memory_usage(deep=True).sum()
+                                    diff_memory_usage_filter = current_memory_usage_filter - original_memory_usage_filter
+                                    size_in_kb_filter = f"{current_memory_usage_filter/(1024):.2f}"
+                                    size_in_mb_filter = f"{current_memory_usage_filter/(1024**2):.2f}"
+                                    if float(size_in_mb_filter) > 1:   # use MB
+                                        st.metric("Size of filtered dataset in memory", value=size_in_mb_filter+" MB",
+                                                delta=f"{(diff_memory_usage_filter)/(1024**2):.2f}" if diff_memory_usage_filter != 0 else None,
+                                                help="Size in memory after filtering the dataset, which may differ from the actual file size due to Pandas conversion. Difference respect to the current dataset, not the original one") 
+                                    else:    # use kB
+                                        st.metric("Size of filtered dataset in memory", value=size_in_kb_filter+" kB",
+                                                delta=f"{(diff_memory_usage_filter)/(1024):.2f}" if diff_memory_usage_filter != 0 else None,
+                                                help="Size in memory after filtering the dataset, which may differ from the actual file size due to Pandas conversion. Difference respect to the current dataset, not the original one")
+                                
+                                # second button to apply the changes
+                                if st.form_submit_button("Apply changes to dataset", 
+                                                        help=":warning: This will remove the rest of the samples",
+                                                        on_click=save_filtered_dataset):   # save in the state session variable the filtering made
+                                    # update the dataset with the filtered one
+                                    reset_all_session_state()   # reset all charts and labelling variables from session state to default value
+                                    st.rerun()   # rerun the app to update the table   
+            
+                            else:
+                                raise ValueError("No column or condition was selected to perform the filtering")
+                            
+                        except Exception as e:   # catch any error raised
+                            st.error("Error while filtering the dataset ---- " + str(e), icon="🚨")
+            else:
+                st.error("Can't use this functionality. At least one row and one column are needed in the dataset", icon="🚨")
     
         # DOWNLOAD DATASET SECTION-------------------------------------
         st.divider()
@@ -495,10 +570,6 @@ def app():
                             disabled=True, use_container_width=True)
             
             st.error("Please, write a valid name for the file to download", icon="🚨")
-        
-        
-        
-        
-        
+
     else:
         st.warning("Please, upload a file first...")    # if no file uploaded, show warning message

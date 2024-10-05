@@ -100,7 +100,7 @@ def app():
                 except Exception:
                     st.warning("This dataset does not support boxplots of numerical variables by non-numerical variables")
             else:
-                st.warning("No non-numerical variables in the dataset")
+                st.info("Zero non-numerical variables in the dataset")
         
         
         # CORRELATION MATRIX BETWEEN NUMERICAL VARIABLES

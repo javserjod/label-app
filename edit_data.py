@@ -127,7 +127,6 @@ def app():
                     with col1:
                         # show the number of NA values per column (NaN and None)
                         st.dataframe(na_table, use_container_width=True)   # show the number of NA values per column
-                    
                     with col2:
                         if st.form_submit_button("Delete all rows with any NA value", use_container_width=True):
                             st.session_state.dataset = st.session_state.dataset.dropna()
@@ -139,7 +138,14 @@ def app():
                             reset_all_session_state()   # reset all charts and labelling variables from session state to default value
                             st.rerun()   # rerun the app to update the table
                     
-                    
+                    col3, col4, col5= st.columns([1, 1, 1])
+                    with col3:
+                        st.metric("Rows with NA: ", value=st.session_state.dataset.isna().any(axis=1).sum())  # count the number of rows with any NA value
+                    with col4:
+                        st.metric("Columns with NA: ", value=len(columns_with_na))
+                    with col5:
+                        st.metric("Total NA values: ", value=st.session_state.dataset.isna().sum().sum())
+                            
                     st.multiselect("Select one or more columns to fill NA values with chosen values:", options= columns_with_na, 
                                 placeholder="Choose one or more columns", default=None, key="columns_to_fill_na",
                                 help="Select one or more columns that will be filled with the chosen value at any cell with NA value")
@@ -572,4 +578,4 @@ def app():
             st.error("Please, write a valid name for the file to download", icon="🚨")
 
     else:
-        st.warning("Please, upload a file first...")    # if no file uploaded, show warning message
+        st.info("Please, upload a file first", icon=":material/help_center:")    # if no file uploaded, show info message

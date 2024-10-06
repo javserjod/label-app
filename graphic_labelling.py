@@ -334,6 +334,7 @@ def app():
         try:
             st.selectbox("Select the x-axis:", st.session_state.dataset.columns.tolist(), index = st.session_state.x_axis_variable_index,
                         on_change=reload_x_axis_variable_index, key="x_axis")    # select the x axis data from index
+            
             st.selectbox("Select the y-axis:", st.session_state.dataset.columns.tolist(), index = st.session_state.y_axis_variable_index,
                         on_change=reload_y_axis_variable_index, key="y_axis")    # select the y axis data from index
             
@@ -741,7 +742,7 @@ def app():
                         help="When changed, all the session state variables will be reset to default values")
         
         if st.session_state.graph_type == "None":     # nothing
-            st.warning("Select a graph type to show all its parameters and display the data...")
+            st.info("Select a graph type to show all its parameters and display the data", icon=":material/help_center:")
         with st.container(border = True):
             if st.session_state.graph_type == "Line Chart":
                 line_chart()
@@ -753,4 +754,4 @@ def app():
                 pie_chart()
 
     else:
-        st.warning("Please, upload a file first...")    # if no file uploaded, show warning message
+        st.info("Please, upload a file first", icon=":material/help_center:")    # if no file uploaded, show warning message

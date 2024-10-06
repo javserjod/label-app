@@ -10,7 +10,10 @@ def app():
     #-------------------------- FUNCTIONS ---------------------------#
     def load_data() -> None:
     # read file and store it in session state, also file name. and reset all charts variables from session state to default value
-        st.session_state.original_dataset = pd.read_csv(uploaded_file)
+        #st.session_state.original_dataset = pd.read_csv(uploaded_file, delimiter='[;,]', engine='python')  # read the file
+        st.session_state.original_dataset = pd.read_csv(uploaded_file, sep=None, engine='python')  # read the file, DETECT/INFER THE DELIMITER
+        convert_boolean_columns()   # convert actually boolean columns to boolean type instead of int64 (due to bad inference when reading the file)
+        
         st.session_state.dataset = st.session_state.original_dataset.copy()  # copy the original dataset
         st.session_state.file_name =  uploaded_file.name
         
@@ -22,7 +25,26 @@ def app():
         st.session_state.graph_selectbox_index = 0
         # reset all charts variables from session state to default value
         reset_all_session_state()    # reset all charts and labelling variables from session state to default value
+    
         
+    def convert_boolean_columns() -> None:
+        # search for int64 columns with only 0s and 1s try to convert them to boolean (they are probably boolean columns). Also convert yes, no or true, false to boolean 0,1
+        for column_name in st.session_state.original_dataset.select_dtypes(include=['int64', 'object']).columns:
+            unique_values = st.session_state.original_dataset[column_name].unique()
+            # if the column has only 0s and 1s (or only one of them), convert it to boolean
+            if set(unique_values) <= {0, 1} and len(unique_values) >= 1:
+                st.session_state.original_dataset[column_name] = st.session_state.original_dataset[column_name].astype(bool)
+            
+            # if the column has only "yes"/"no" or "true"/"false", convert it to boolean
+            try:
+                if set([val.lower() for val in unique_values]) <= {"yes", "no"} and len(unique_values) >= 1:
+                    st.session_state.original_dataset[column_name] = st.session_state.original_dataset[column_name].astype(bool)
+                
+                if set([val.lower() for val in unique_values]) <= {"true", "false"} and len(unique_values) >= 1:
+                    st.session_state.original_dataset[column_name] = st.session_state.original_dataset[column_name].astype(bool)
+            except:
+                pass   # if it is not possible to convert to lower case, just pass
+    
         
     #---------------------------- PAGE ------------------------------#
     st.header("Upload Data")
@@ -34,8 +56,8 @@ def app():
         try:
             load_data()
             st.success("Data loaded successfully!", icon="✅")
-        except:
-            st.error("Error while uploading the file. Please try again...", icon="🚨")
+        except Exception as e:
+            st.error("Error while uploading the file. Please try again..."+str(e), icon="🚨")
     
     if st.session_state.dataset is not None:   # if any data was uploaded
         st.divider()
@@ -57,8 +79,8 @@ def app():
         
         st.markdown("######")   # add space between the metrics and the description
         with st.expander("Show dataset description"):
-            st.dataframe(st.session_state.original_dataset.describe(include="all"), use_container_width = True)
+            st.dataframe(st.session_state.original_dataset.describe(include="all").T, use_container_width = True)
             
     else:
-        st.warning("No file uploaded yet...")
+        st.info("Please, upload a file first on the above component", icon=":material/help_center:")    # if no file uploaded, show info message
         

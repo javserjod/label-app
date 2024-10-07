@@ -1,2 +1,2 @@
 # label-app
-Application to help the user label the data
+An application to assist in editing, visualizing and labelling your data

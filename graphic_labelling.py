@@ -750,8 +750,9 @@ def app():
                 scatter_plot()
             elif st.session_state.graph_type == "Bar Chart":
                 bar_chart()
-            elif st.session_state.graph_type == "Pie Chart":    
-                pie_chart()
+                
+            '''elif st.session_state.graph_type == "Pie Chart":    
+                pie_chart()'''
 
     else:
-        st.info("Please, upload a file first", icon=":material/help_center:")    # if no file uploaded, show warning message
+        st.info("Please, upload a file first", icon=":material/help_center:")    # if no file uploaded, show info message

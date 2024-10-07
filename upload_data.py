@@ -28,9 +28,10 @@ def app():
     
         
     def convert_boolean_columns() -> None:
-        # search for int64 columns with only 0s and 1s try to convert them to boolean (they are probably boolean columns). Also convert yes, no or true, false to boolean 0,1
+        # search for int64 columns with only 0s and 1s try to convert them to boolean (they are probably boolean columns). Also convert yes/no or true/false to boolean 1/0
         for column_name in st.session_state.original_dataset.select_dtypes(include=['int64', 'object']).columns:
             unique_values = st.session_state.original_dataset[column_name].unique()
+            
             # if the column has only 0s and 1s (or only one of them), convert it to boolean
             if set(unique_values) <= {0, 1} and len(unique_values) >= 1:
                 st.session_state.original_dataset[column_name] = st.session_state.original_dataset[column_name].astype(bool)

@@ -21,10 +21,16 @@ def app():
     def get_corr_matrix(corr_method: str, toggle_bool: bool) -> go.Figure:
         # returns a plotly figure with the correlation matrix of the numerical variables
         numerical_columns_names, _ = get_numerical_non_numerical_columns()
+        
         if toggle_bool:    # add boolean columns to the correlation matrix
             bool_columns = get_bool_columns()
             numerical_columns_names = numerical_columns_names.append(bool_columns)
-        corr = st.session_state.dataset[numerical_columns_names].corr(method=corr_method)
+            
+        dataset_corr = st.session_state.dataset[numerical_columns_names].copy()    # copy, don't act on the current dataset
+        if toggle_bool:
+            dataset_corr[bool_columns] = dataset_corr[bool_columns].astype(float)      # convert boolean columns to float
+        
+        corr = dataset_corr[numerical_columns_names].corr(method=corr_method)
         fig = go.Figure(data=[go.Heatmap(   z=corr.values, 
                                             x=corr.columns, 
                                             y=corr.columns, 
@@ -134,6 +140,7 @@ def app():
                     st.warning("This dataset does not support this correlation matrix")
             else:
                 st.warning("No correlation matrix to show. At least two numerical variables are needed")
-    
+              
+
     else:
         st.info("Please, upload a file first", icon=":material/help_center:")    # if no file uploaded, show info message

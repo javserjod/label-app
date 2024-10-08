@@ -257,17 +257,27 @@ def app():
                         if st.session_state.column_to_add != "":   # if any name was written
                             if st.session_state.column_to_add not in get_current_headers():   # if the name is not repeated
                                 try:
+                                    
                                     st.session_state.dataset.insert(loc=int(st.session_state.column_add_index),
                                                                 column=st.session_state.column_to_add.strip(),
                                                                 value=pd.Series([st.session_state.column_add_value]*st.session_state.dataset.shape[0], dtype=st.session_state.column_add_dtype),
                                                                 allow_duplicates=False)   # drop the selected column
+                                    
+                                    # correct if boolean and false/0 -> pd.Series doesn't operate good with false/0, and changes it for true/1
+                                    if st.session_state.column_add_dtype == 'bool':   
+                                        if st.session_state.column_add_value.strip().lower() == "false" or st.session_state.column_add_value == "0":
+                                            st.session_state.dataset[st.session_state.column_to_add.strip()].replace({True:False}, inplace=True)
+
                                     # if everything went well
                                     reset_all_session_state()   # reset all charts and labelling variables from session state to default value
                                     st.rerun()   # rerun the app to update the table
                                 
                                 except Exception as e:   # delete the just added column if error (if it was added)
-                                    st.session_state.dataset = st.session_state.dataset.drop(st.session_state.column_to_add, axis=1)    # delete the just added column
-                                    raise ValueError(f"Check if the index is an appropiate value, and if the default value is compatible with the dtype selected")
+                                    try:
+                                        st.session_state.dataset = st.session_state.dataset.drop(st.session_state.column_to_add, axis=1)    # delete the just added column
+                                    except:
+                                        pass
+                                    raise ValueError(f"Check if the default value is compatible with the dtype selected")
                             else:
                                 st.error("The name of the new column is already in use. Please, write a different one to proceed", icon="🚨")
                         else:
@@ -342,9 +352,8 @@ def app():
                             st.error("No column was selected to perform the replacement", icon="🚨")
             else:
                 st.error("No cells to replace values. Please, add some rows to the dataset first with the 'Insert new sample at chosen index' functionality or by clicking on the table directly. Columns are needed too, in case there isn't anyone, add one with 'Add variable column'", icon="🚨")
-                        
         
-        
+
         # INSERTION OF NEW SAMPLE
         with st.expander("Insert new sample at chosen index"):
             with st.form("insert_new_sample_form"):
@@ -381,7 +390,8 @@ def app():
                     
                     except Exception as e:
                         st.error("Error while inserting the new sample ---- " + str(e), icon="🚨")
-                        
+        
+        
         # CONDITIONAL FILTERING                
         with st.expander("Conditional filtering"):
             if st.session_state.dataset.shape[0] > 0 and st.session_state.dataset.shape[1] > 0:   # only available if there are rows and columns in the dataset
@@ -520,40 +530,53 @@ def app():
             col1, col2 = st.columns(2)
             with col1:
                 # CSV download button
-                if st.download_button(label=":material/download: Download modified dataset as CSV", data=convert_df_csv(st.session_state.dataset),
-                                    file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.csv') else st.session_state.download_file_name+'.csv', 
-                                    mime="text/csv", type="primary",
-                                    use_container_width=True): 
-                    #st.success(f"Dataset downloaded successfully in format CSV - {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.csv') else st.session_state.download_file_name+'.csv'}", icon="✅")
-                    success_download_format = "CSV"
+                try:
+                    if st.download_button(label=":material/download: Download modified dataset as CSV", data=convert_df_csv(st.session_state.dataset),
+                                        file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.csv') else st.session_state.download_file_name+'.csv', 
+                                        mime="text/csv", type="primary",
+                                        use_container_width=True): 
+                        #st.success(f"Dataset downloaded successfully in format CSV - {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.csv') else st.session_state.download_file_name+'.csv'}", icon="✅")
+                        success_download_format = "CSV"
+                except Exception as e:
+                    st.error(str(e), icon="🚨")
             
             with col2:    
                 # JSON download button
-                if st.download_button(label=":material/download: Download modified dataset as JSON", data=convert_df_json(st.session_state.dataset),
-                                    file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.json') else st.session_state.download_file_name+'.json', 
-                                    mime="text/json", type="primary",
-                                    use_container_width=True): 
-                    #st.success(f"Dataset downloaded successfully in format JSON as {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.json') else st.session_state.download_file_name+'.json'}", icon="✅")
-                    success_download_format = "JSON"
+                try:
+                    if st.download_button(label=":material/download: Download modified dataset as JSON", data=convert_df_json(st.session_state.dataset),
+                                        file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.json') else st.session_state.download_file_name+'.json', 
+                                        mime="text/json", type="primary",
+                                        use_container_width=True): 
+                        #st.success(f"Dataset downloaded successfully in format JSON as {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.json') else st.session_state.download_file_name+'.json'}", icon="✅")
+                        success_download_format = "JSON"
+                except Exception as e:
+                    st.error(str(e), icon="🚨")
             
             col1, col2 = st.columns(2)
             with col1:    
                 # Parquet download button
-                if st.download_button(label=":material/download: Download modified dataset as Parquet", data=convert_df_parquet(st.session_state.dataset),
-                                    file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.parquet') else st.session_state.download_file_name+'.parquet', 
-                                    mime="text/parquet", type="primary",
-                                    use_container_width=True): 
-                    #st.success(f"Dataset downloaded successfully in format Parquet as {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.parquet') else st.session_state.download_file_name+'.parquet'}", icon="✅")
-                    success_download_format = "Parquet"
+                try:
+                    if st.download_button(label=":material/download: Download modified dataset as Parquet", data=convert_df_parquet(st.session_state.dataset),
+                                        file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.parquet') else st.session_state.download_file_name+'.parquet', 
+                                        mime="text/parquet", type="primary",
+                                        use_container_width=True): 
+                        #st.success(f"Dataset downloaded successfully in format Parquet as {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.parquet') else st.session_state.download_file_name+'.parquet'}", icon="✅")
+                        success_download_format = "Parquet"
+                except Exception as e:
+                    st.error(str(e), icon="🚨")
             
-            with col2:    
+            with col2:
                 # Excel XLSX download button
-                if st.download_button(label=":material/download: Download modified dataset as XLSX", data=convert_df_excel(st.session_state.dataset),
-                                    file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.xlsx') else st.session_state.download_file_name+'.xlsx', 
-                                    mime="text/xlsx", type="primary",
-                                    use_container_width=True): 
-                    #st.success(f"Dataset downloaded successfully in format XLSX as {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.xslx') else st.session_state.download_file_name+'.xslx'}", icon="✅")
-                    success_download_format = "XLSX"
+                try:
+                    if st.download_button(label=":material/download: Download modified dataset as XLSX", data=convert_df_excel(st.session_state.dataset),
+                                        file_name = st.session_state.download_file_name if st.session_state.download_file_name.endswith('.xlsx') else st.session_state.download_file_name+'.xlsx', 
+                                        mime="text/xlsx", type="primary",
+                                        use_container_width=True): 
+                        #st.success(f"Dataset downloaded successfully in format XLSX as {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.xslx') else st.session_state.download_file_name+'.xslx'}", icon="✅")
+                        success_download_format = "XLSX"
+                except Exception as e:   # if datetime error -> Excel does not support datetimes with timezones. Please ensure that datetimes are timezone unaware before writing to Excel.
+                    st.error(str(e), icon="🚨")
+            
             
             if success_download_format != "":   # if any download was successful
                 st.success(f"Dataset downloaded successfully in format {success_download_format}. Filename, if not repeated: {st.session_state.download_file_name if st.session_state.download_file_name.endswith('.'+success_download_format.lower()) else st.session_state.download_file_name+'.'+success_download_format.lower()}", icon="✅")

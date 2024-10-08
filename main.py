@@ -117,17 +117,17 @@ if "chart_title" not in st.session_state:
     st.session_state.chart_title = ""       # default value
      
 if "x_axis_variable_index" not in st.session_state:
-    st.session_state.x_axis_variable_index = 0       # default value
+    st.session_state.x_axis_variable_index = None      # default value None, so no graphic is plotted at first
        
 if "y_axis_variable_index" not in st.session_state:
-    st.session_state.y_axis_variable_index = 0       # default value
+    st.session_state.y_axis_variable_index = None      # default value None, so no graphic is plotted at first
     
 if "multiselect_y_axis_variable" not in st.session_state:
     st.session_state.multiselect_y_axis_variable = []       # default value
     
 if "chart_color_variable_index" not in st.session_state:
     # to store the index of the chosen color variable in selectbox
-    st.session_state.chart_color_variable_index = 0        # default value
+    st.session_state.chart_color_variable_index = None        # default value None, so no graphic is plotted at first
 
 
 

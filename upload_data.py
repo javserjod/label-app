@@ -13,6 +13,7 @@ def app():
         #st.session_state.original_dataset = pd.read_csv(uploaded_file, delimiter='[;,]', engine='python')  # read the file
         st.session_state.original_dataset = pd.read_csv(uploaded_file, sep=None, engine='python')  # read the file, DETECT/INFER THE DELIMITER
         convert_boolean_columns()   # convert actually boolean columns to boolean type instead of int64 (due to bad inference when reading the file)
+        convert_datetime_columns()  # convert actually datetime columns to datetime type instead of object (due to bad inference when reading the file)
         
         st.session_state.dataset = st.session_state.original_dataset.copy()  # copy the original dataset
         st.session_state.file_name =  uploaded_file.name
@@ -45,6 +46,14 @@ def app():
                     st.session_state.original_dataset[column_name] = st.session_state.original_dataset[column_name].astype(bool)
             except:
                 pass   # if it is not possible to convert to lower case, just pass
+            
+    def convert_datetime_columns() -> None:
+        # search for object columns that can store datetime values, and convert them
+        for column_name in st.session_state.original_dataset.select_dtypes(include=['object']).columns:
+            try:
+                st.session_state.original_dataset[column_name] = pd.to_datetime(st.session_state.original_dataset[column_name])
+            except:
+                pass  # if it is not possible to convert to datetime, just pass
     
         
     #---------------------------- PAGE ------------------------------#

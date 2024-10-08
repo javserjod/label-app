@@ -135,7 +135,7 @@ def app():
                 else:
                     raise Exception("No data selected for the y-axis")    # if no data selected for the y-axis, raise exception
                     
-            else:    # not time series, just relation between continuos variables
+            else:    # not time series, just relation between continuous variables
                 st.multiselect("Select the variable depicted in x-axis:", options=st.session_state.dataset.columns.tolist(),
                                 max_selections=1, default=st.session_state.line_chart_column_against, on_change= reload_line_chart_column_against, key="multiselect_column_against")    # select the x-axis variable when no time series
                 
@@ -539,10 +539,10 @@ def app():
         try:
             # selectbox for the x axis variable
             st.selectbox("Select the x-axis variable:", st.session_state.dataset.columns.tolist(), index = st.session_state.x_axis_variable_index,
-                        on_change=reload_x_axis_variable_index, key="x_axis")    # select the x axis data from index
+                        on_change=reload_x_axis_variable_index, key="x_axis", placeholder="Choose one x-axis variable")    # select the x axis data from index
             
             # selectbox for the color variable
-            st.selectbox("Select the color (usually a categorical column):", st.session_state.dataset.columns.tolist(),
+            st.selectbox("Select the color (usually a categorical column):", st.session_state.dataset.columns.tolist(), placeholder="Choose one color variable",
                         index = st.session_state.chart_color_variable_index, on_change=reload_chart_color_variable_index, key="color")    # select the color data from index
             
             # selectbox for the barmode
@@ -554,14 +554,25 @@ def app():
             st.session_state.chart_title=st.text_input("Title of the scatter plot:", value=st.session_state.chart_title, key="chart_text_input_title",
                             on_change=reload_chart_title, placeholder="No title")    # input for the name of the scatter plot chart
             
+            # raise errors if values not selected
+            if st.session_state.x_axis_variable_index == None:
+                raise Exception("X-axis variable not selected")
+            if st.session_state.chart_color_variable_index == None:
+                raise Exception("Color variable not selected")
+                
+            
             fig = go.Figure(
                 layout=dict(
                     barcornerradius=15)
                 )
             
             st.session_state.translated_indexes = []   # list of translated indexes for each bar (empty at first)
-                       
-            for col in st.session_state.dataset[st.session_state.color].unique():        # one trace for each unique value of the color variable
+            
+            diff_colors= st.session_state.dataset[st.session_state.color].unique()   
+            if diff_colors.size > 1000:   # if more than 1000 unique colors, show error
+                raise Exception("Too many unique values fro the color variable. Change the color variable to a column with less unique values")        
+            
+            for col in diff_colors:        # one trace for each unique value of the color variable
                 
                 filtered_data = st.session_state.dataset[st.session_state.dataset[st.session_state.color] == col]       # filtered dataset by certain value of selected column
             

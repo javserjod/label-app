@@ -46,10 +46,10 @@ def reset_bar_chart_session_state() -> None:
 def reset_common_session_state() -> None:
     # reset common session state variables to default values
     st.session_state.chart_title = ""  
-    st.session_state.x_axis_variable_index = 0    # first index
-    st.session_state.y_axis_variable_index = 0    # second index (zero to prevent error when dataset only has one column)
+    st.session_state.x_axis_variable_index = None    # default value None, so no graphic is plotted at first
+    st.session_state.y_axis_variable_index = None    # default value None, so no graphic is plotted at first
     st.session_state.multiselect_y_axis_variable = []
-    st.session_state.chart_color_variable_index = 0  
+    st.session_state.chart_color_variable_index = None   # default value None, so no graphic is plotted at first
     
     
 def reset_labelling_session_state() -> None:

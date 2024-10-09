@@ -176,6 +176,7 @@ def app():
             else:
                 st.info("No NA values in the dataset", icon="✅")
         
+        
         # MODIFY HEADERS
         with st.expander("Modify headers"):
             if len(st.session_state.dataset.columns) > 0:   # only available if there are columns in the dataset
@@ -197,6 +198,10 @@ def app():
                                 try:
                                     for i, col in enumerate(current_headers):
                                         current_headers[i] = pd.Series([col]).astype(st.session_state.dataset.dtypes[col]).iloc[0]      # convert columns names to their type and add to the list
+                                        # add correctly False boolean values
+                                        if st.session_state.dataset.dtypes[col] == 'bool':   
+                                            if col.strip().lower() == "false" or col == "0":
+                                                current_headers[i] = False    
                                 except:
                                     raise ValueError(f"Cannot convert column name \"{col}\" to the type it contains, {st.session_state.dataset.dtypes[col]}")
                                 
@@ -263,7 +268,7 @@ def app():
                                                                 value=pd.Series([st.session_state.column_add_value]*st.session_state.dataset.shape[0], dtype=st.session_state.column_add_dtype),
                                                                 allow_duplicates=False)   # drop the selected column
                                     
-                                    # correct if boolean and false/0 -> pd.Series doesn't operate good with false/0, and changes it for true/1
+                                    # add correctly False boolean values -> pd.Series doesn't operate good with false/0, and changes it for true/1 without permission
                                     if st.session_state.column_add_dtype == 'bool':   
                                         if st.session_state.column_add_value.strip().lower() == "false" or st.session_state.column_add_value == "0":
                                             st.session_state.dataset[st.session_state.column_to_add.strip()].replace({True:False}, inplace=True)
@@ -335,12 +340,21 @@ def app():
                                     # replacement. Make a conversion to the type of the column
                                     try:
                                         val_replaced_conv = pd.Series([st.session_state.value_replaced]).astype(st.session_state.dataset.dtypes[col]).iloc[0]
+                                        # add correctly False boolean values
+                                        if st.session_state.dataset.dtypes[col] == 'bool':   
+                                            if st.session_state.value_replaced.strip().lower() == "false" or st.session_state.value_replaced == "0":
+                                                val_replaced_conv = False
                                     except:
                                         raise ValueError(f"Replaced value \"{st.session_state.value_replaced}\" can't be in column \"{col}\" because it's not compatible with its type {st.session_state.dataset.dtypes[col]}")
                                     try:
                                         replacement_val_conv = pd.Series([st.session_state.replacement_value]).astype(st.session_state.dataset.dtypes[col]).iloc[0]
+                                        # add correctly False boolean values
+                                        if st.session_state.dataset.dtypes[col] == 'bool':   
+                                            if st.session_state.replacement_value.strip().lower() == "false" or st.session_state.replacement_value == "0":
+                                                replacement_val_conv = False
                                     except:
                                         raise ValueError(f"Replacement value \"{st.session_state.value_replaced}\" is not compatible with the type of the column \"{col}\", {st.session_state.dataset.dtypes[col]}")
+                                    
                                     st.session_state.dataset[col] = st.session_state.dataset[col].replace(val_replaced_conv, replacement_val_conv)   # replace the values                                                
                                 # if everything went well
                                 reset_all_session_state()   # reset all charts and labelling variables from session state to default value
@@ -377,6 +391,12 @@ def app():
                         try:
                             for var in get_current_headers():
                                 new_sample_values.append(pd.Series([st.session_state[var]]).astype(st.session_state.dataset.dtypes[var]).iloc[0])   # convert the value to the type of the column
+                                
+                                # add correctly False boolean values
+                                if st.session_state.dataset.dtypes[var] == 'bool':   
+                                    if st.session_state[var].strip().lower() == "false" or st.session_state[var] == "0":
+                                        new_sample_values[-1] = False    # change last value for false
+                        
                         except:      # error while converting the value to the type of the column
                             raise ValueError(f"Cannot convert value \"{st.session_state[var]}\" to the type of the column \"{var}\", {st.session_state.dataset.dtypes[var]}")
                             
@@ -425,6 +445,11 @@ def app():
                                     else:   # not empty string, now try conversions
                                         try:
                                             value_to_compare_conv = pd.Series([st.session_state.value_to_compare]).astype(st.session_state.dataset.dtypes[st.session_state.column_to_filter]).iloc[0]   # convert the value to the type of the column
+                                            # add correctly False boolean values
+                                            if st.session_state.dataset.dtypes[st.session_state.column_to_filter] == 'bool':   
+                                                if st.session_state.value_to_compare.strip().lower() == "false" or st.session_state.value_to_compare == "0":
+                                                    value_to_compare_conv = False    
+                                            
                                             # use backticks around column name (mandatory if contains spaces, punctuations, starting with digits...)
                                             query_str = f"`{st.session_state.column_to_filter}` {st.session_state.condition_to_apply[0]} {value_to_compare_conv}"   # create the query string
                                             try:   # make the query
@@ -480,6 +505,7 @@ def app():
                             st.error("Error while filtering the dataset ---- " + str(e), icon="🚨")
             else:
                 st.error("Can't use this functionality. At least one row and one column are needed in the dataset", icon="🚨")
+    
     
         # DOWNLOAD DATASET SECTION-------------------------------------
         st.divider()

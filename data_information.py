@@ -102,7 +102,7 @@ def app():
                     st.info("Showing histograms of categorical variables (dtypes object and boolean) with less than 300 unique values, in order to limit resource consumption", icon=":material/help_center:")
                     for var in categorical_columns:
                         if st.session_state.dataset[var].nunique() <= 300:      #limit resource consuming
-                            fig = go.Figure(data=[go.Histogram(y=st.session_state.dataset[var])])   #H ORIZONTAL HISTOGRAM
+                            fig = go.Figure(data=[go.Histogram(y=st.session_state.dataset[var])])   #HORIZONTAL HISTOGRAM
                             fig.update_layout(title=dict(text="Histogram of "+var, x=0.5, xanchor='center', y=0.9, yanchor='top'), 
                                             xaxis_title_text='Count', yaxis_title_text=var,  # set axis titles (horizontal histogram)
                                             bargap=0.1,   # add gap between bars (separate classes)
@@ -177,7 +177,8 @@ def app():
                                 fig = go.Figure()
                                 for var_class in st.session_state.dataset[st.session_state.boxplot_selectbox_key].unique():
                                     fig.add_trace(go.Box(   y=st.session_state.dataset[st.session_state.dataset[st.session_state.boxplot_selectbox_key]==var_class][var],    # unique values of categorical variable
-                                                            #y=st.session_state.dataset[var],
+                                                            boxpoints="all",  # show all points
+                                                            jitter=0.5,    # spread points
                                                             name=var_class if type(var_class) == str else str(var_class),
                                                             boxmean=True,  # show mean
                                                             )

@@ -1,7 +1,7 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
-from scipy.stats.stats import kendalltau
+from scipy.stats.stats import kendalltau   # just for kendall correlation matrix
 
 def app():
     
@@ -102,10 +102,10 @@ def app():
                     st.info("Showing histograms of categorical variables (dtypes object and boolean) with less than 300 unique values, in order to limit resource consumption", icon=":material/help_center:")
                     for var in categorical_columns:
                         if st.session_state.dataset[var].nunique() <= 300:      #limit resource consuming
-                            fig = go.Figure(data=[go.Histogram(x=st.session_state.dataset[var])])
+                            fig = go.Figure(data=[go.Histogram(y=st.session_state.dataset[var])])   #H ORIZONTAL HISTOGRAM
                             fig.update_layout(title=dict(text="Histogram of "+var, x=0.5, xanchor='center', y=0.9, yanchor='top'), 
-                                            yaxis_title_text='Count', xaxis_title_text=var,  # set axis titles
-                                            bargap=0,   # gap between bars
+                                            xaxis_title_text='Count', yaxis_title_text=var,  # set axis titles (horizontal histogram)
+                                            bargap=0.1,   # add gap between bars (separate classes)
                                             activeselection=dict(fillcolor='pink', opacity=0.001))
                             st.markdown("######")   # add space between components
                             st.plotly_chart(fig, key="hist_"+var, on_select="rerun", config=config)

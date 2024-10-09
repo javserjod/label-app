@@ -167,33 +167,37 @@ def app():
             
             if len(categorical_columns) > 0:    # at least one numerical variable in the dataset
                 try:
-                    st.selectbox("Choose a non-numerical column X-axis and color:", categorical_columns, 
-                                 key="boxplot_selectbox_key", index=None, placeholder="Select a non-numerical variable",
-                                 help="Choose a non-numerical column for X-axis and whose categories will color the boxplots for each numerical variable. Preferably a categorical variable with few unique values or a boolean one. Limit is set to 300 unique values")            
+                    if st.session_state.dataset.shape[0] <= 5000:    # limit number of rows
+                        st.selectbox("Choose a non-numerical column X-axis and color:", categorical_columns, 
+                                    key="boxplot_selectbox_key", index=None, placeholder="Select a non-numerical variable",
+                                    help="Choose a non-numerical column for X-axis and whose categories will color the boxplots for each numerical variable. Preferably a categorical variable with few unique values or a boolean one. Limit is set to 300 unique values")            
                     
-                    if st.session_state.boxplot_selectbox_key != None:    # if any categorical variable is selected
-                        if st.session_state.dataset[st.session_state.boxplot_selectbox_key].nunique() <= 300:      #limit resource consuming
-                            for var in numerical_columns:   # only numerical variables in the dataset have a boxplot
-                                fig = go.Figure()
-                                for var_class in st.session_state.dataset[st.session_state.boxplot_selectbox_key].unique():
-                                    fig.add_trace(go.Box(   y=st.session_state.dataset[st.session_state.dataset[st.session_state.boxplot_selectbox_key]==var_class][var],    # unique values of categorical variable
-                                                            boxpoints="all",  # show all points
-                                                            jitter=0.5,    # spread points
-                                                            name=var_class if type(var_class) == str else str(var_class),
-                                                            boxmean=True,  # show mean
-                                                            )
-                                                    )
-                                fig.update_layout(title=dict(text="Boxplot of "+var+" by "+st.session_state.boxplot_selectbox_key, x=0.5, xanchor='center', y=0.9, yanchor='top'), 
-                                                dragmode="select", selectdirection="h",   # fits all height, just horizontal movement for selection
-                                                yaxis_title_text=var, xaxis_title_text=st.session_state.boxplot_selectbox_key,  # set axis titles
-                                                activeselection=dict(fillcolor='pink', opacity=0.001), showlegend=True)
+                    
+                        if st.session_state.boxplot_selectbox_key != None:    # if any categorical variable is selected
+                            if st.session_state.dataset[st.session_state.boxplot_selectbox_key].nunique() <= 300:      #limit resource consuming
                                 
-                                st.plotly_chart(fig, key="box_"+var, on_select="rerun", config=config)
+                                    for var in numerical_columns:   # only numerical variables in the dataset have a boxplot
+                                        fig = go.Figure()
+                                        for var_class in st.session_state.dataset[st.session_state.boxplot_selectbox_key].unique():
+                                            fig.add_trace(go.Box(   y=st.session_state.dataset[st.session_state.dataset[st.session_state.boxplot_selectbox_key]==var_class][var],    # unique values of categorical variable
+                                                                    boxpoints="all",  # show all points
+                                                                    jitter=0.5,    # spread points
+                                                                    name=var_class if type(var_class) == str else str(var_class),
+                                                                    boxmean='sd',  # show mean and standard deviation
+                                                                    )
+                                                            )
+                                        fig.update_layout(title=dict(text="Boxplot of "+var+" by "+st.session_state.boxplot_selectbox_key, x=0.5, xanchor='center', y=0.9, yanchor='top'), 
+                                                        dragmode="select", selectdirection="h",   # fits all height, just horizontal movement for selection
+                                                        yaxis_title_text=var, xaxis_title_text=st.session_state.boxplot_selectbox_key,  # set axis titles
+                                                        activeselection=dict(fillcolor='pink', opacity=0.001), showlegend=True)
+                                        
+                                        st.plotly_chart(fig, key="box_"+var, on_select="rerun", config=config)
+                            else:
+                                st.warning(f"Variable \"{st.session_state.boxplot_selectbox_key}\" has too many unique values ({st.session_state.dataset[st.session_state.boxplot_selectbox_key].nunique()}) to plot its histogram")       
                         else:
-                            st.warning(f"Variable \"{st.session_state.boxplot_selectbox_key}\" has too many unique values ({st.session_state.dataset[st.session_state.boxplot_selectbox_key].nunique()}) to plot its histogram")
-                            
+                            st.info("Select a non-numerical variable to color the boxplots. It must have no more than 300 unique classes", icon=":material/help_center:")
                     else:
-                        st.info("Select a non-numerical variable to color the boxplots. It must have no more than 300 unique classes", icon=":material/help_center:")
+                        st.warning("This dataset has too many rows to plot boxplots with current resources. Limit is 5000 samples")
                 except Exception:
                     st.warning("This dataset does not support boxplots of numerical variables by non-numerical variables")
             else:

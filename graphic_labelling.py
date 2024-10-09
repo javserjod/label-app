@@ -569,8 +569,9 @@ def app():
             st.session_state.translated_indexes = []   # list of translated indexes for each bar (empty at first)
             
             diff_colors= st.session_state.dataset[st.session_state.color].unique()   
+            
             if diff_colors.size > 1000:   # if more than 1000 unique colors, show error
-                raise Exception("Too many unique values fro the color variable. Change the color variable to a column with less unique values")        
+                raise Exception("Too many unique values for the color variable. Change the color variable to a column with less unique values")        
             
             for col in diff_colors:        # one trace for each unique value of the color variable
                 
@@ -747,7 +748,7 @@ def app():
         st.header("Graphic Labelling")
         st.subheader(f"File name: {st.session_state.file_name}")
         
-        graph_options = ["None", "Line Chart", "Scatter Plot", "Bar Chart", "Pie Chart"]   # all the graph types available
+        graph_options = ["None", "Line Chart", "Scatter Plot", "Bar Chart"] #, "Pie Chart"]   # all the graph types available
         st.selectbox("Graph type", graph_options, index = st.session_state.graph_selectbox_index,
                         on_change=reload_graph_type_selectbox, key="graph_type",    # select the graph type (index is preselected option)
                         help="When changed, all the session state variables will be reset to default values")

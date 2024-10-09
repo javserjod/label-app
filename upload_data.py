@@ -8,25 +8,34 @@ from reset_functions import reset_all_session_state
 def app():
     
     #-------------------------- FUNCTIONS ---------------------------#
-    def load_data() -> None:
+    def load_data(uploaded_file) -> None:
     # read file and store it in session state, also file name. and reset all charts variables from session state to default value
-        #st.session_state.original_dataset = pd.read_csv(uploaded_file, delimiter='[;,]', engine='python')  # read the file
-        st.session_state.original_dataset = pd.read_csv(uploaded_file, sep=None, engine='python')  # read the file, DETECT/INFER THE DELIMITER
-        convert_boolean_columns()   # convert actually boolean columns to boolean type instead of int64 (due to bad inference when reading the file)
-        convert_datetime_columns()  # convert actually datetime columns to datetime type instead of object (due to bad inference when reading the file)
-        
-        st.session_state.dataset = st.session_state.original_dataset.copy()  # copy the original dataset
-        st.session_state.file_name =  uploaded_file.name
-        
-        # save the name of the file to be downloaded, removing its extension, whatever it is
-        dot_index = st.session_state.file_name.rfind(".")    # find the index of last dot in the file name
-        st.session_state.download_file_name = st.session_state.file_name[:dot_index] + "_modified"  # default name of the file to be downloaded (used in Data Edit)
+        try:
+            if uploaded_file.name.endswith('.csv'):
+                st.session_state.original_dataset = pd.read_csv(uploaded_file, sep=None, engine='python')  # read the file, DETECT/INFER THE DELIMITER
+            elif uploaded_file.name.endswith('.json'):
+                st.session_state.original_dataset = pd.read_json(uploaded_file)  # read the file
+            elif uploaded_file.name.endswith('.xlsx'):    # openpyxl downloaded with pip install openpyxl
+                st.session_state.original_dataset = pd.read_excel(uploaded_file, engine="openpyxl")  # read the file
+            elif uploaded_file.name.endswith('.parquet'):
+                st.session_state.original_dataset = pd.read_parquet(uploaded_file)  # read the file
+            
+            convert_boolean_columns()   # convert actually boolean columns to boolean type instead of int64 (due to bad inference when reading the file)
+            convert_datetime_columns()  # convert actually datetime columns to datetime type instead of object (due to bad inference when reading the file)
+            
+            st.session_state.dataset = st.session_state.original_dataset.copy()  # copy the original dataset
+            st.session_state.file_name =  uploaded_file.name
+            
+            # save the name of the file to be downloaded, removing its extension, whatever it is
+            dot_index = st.session_state.file_name.rfind(".")    # find the index of last dot in the file name
+            st.session_state.download_file_name = st.session_state.file_name[:dot_index] + "_modified"  # default name of the file to be downloaded (used in Data Edit)
 
-        #reset graph type selection in graphic labelling
-        st.session_state.graph_selectbox_index = 0
-        # reset all charts variables from session state to default value
-        reset_all_session_state()    # reset all charts and labelling variables from session state to default value
-    
+            #reset graph type selection in graphic labelling
+            st.session_state.graph_selectbox_index = 0
+            # reset all charts variables from session state to default value
+            reset_all_session_state()    # reset all charts and labelling variables from session state to default value
+        except Exception as e:
+            raise Exception("Error while uploading the file. Please try again..."+str(e))
         
     def convert_boolean_columns() -> None:
         # search for int64 columns with only 0s and 1s try to convert them to boolean (they are probably boolean columns). Also convert yes/no or true/false to boolean 1/0
@@ -60,14 +69,14 @@ def app():
     st.header("Upload Data")
     
     uploaded_file = st.file_uploader(label=":file_folder: Upload a file", 
-                        type=['csv'])
+                        type=['csv', 'json', 'xlsx', 'parquet'], accept_multiple_files=False)
     
     if uploaded_file is not None:   # when a file is uploaded
         try:
-            load_data()
+            load_data(uploaded_file)
             st.success("Data loaded successfully!", icon="✅")
         except Exception as e:
-            st.error("Error while uploading the file. Please try again..."+str(e), icon="🚨")
+            st.error(str(e), icon="🚨")
     
     if st.session_state.dataset is not None:   # if any data was uploaded
         st.divider()

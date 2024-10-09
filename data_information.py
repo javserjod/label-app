@@ -1,6 +1,7 @@
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
+from scipy.stats.stats import kendalltau
 
 def app():
     
@@ -213,9 +214,9 @@ def app():
                     if len(get_bool_columns()) >= 1:  # at least one bool to add
                         st.toggle("Add bool variables", key="add_bool_variables_toggle_key", value=False, help="Add boolean variables to the correlation matrix, which will be treated as numerical")
                     else:
-                        st.toggle("Add bool variables", key="add_bool_variables_toggle_key", value=False, help="Add boolean variables to the correlation matrix, which will be treated as numerical",
+                        st.toggle("Add bool variables", key="add_bool_variables_toggle_key", value=False, help="No boolean variables in the dataset to add to the correlation matrix",
                                   disabled=True)
-                        st.info("No boolean variables in the dataset to add to the correlation matrix", icon=":material/help_center:")
+                        #st.info("No boolean variables in the dataset to add to the correlation matrix", icon=":material/help_center:")
                 try:
                     # show the correlation matrix
                     st.plotly_chart(get_corr_matrix(st.session_state.corr_method_selectbox_key, st.session_state.add_bool_variables_toggle_key), config=config)

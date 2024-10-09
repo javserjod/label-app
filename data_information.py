@@ -213,6 +213,8 @@ def app():
                     if len(get_bool_columns()) >= 1:  # at least one bool to add
                         st.toggle("Add bool variables", key="add_bool_variables_toggle_key", value=False, help="Add boolean variables to the correlation matrix, which will be treated as numerical")
                     else:
+                        st.toggle("Add bool variables", key="add_bool_variables_toggle_key", value=False, help="Add boolean variables to the correlation matrix, which will be treated as numerical",
+                                  disabled=True)
                         st.info("No boolean variables in the dataset to add to the correlation matrix", icon=":material/help_center:")
                 try:
                     # show the correlation matrix

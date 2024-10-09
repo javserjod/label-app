@@ -159,11 +159,17 @@ def app():
                                 for col in st.session_state.columns_to_fill_na:   # just for checking if an error will be raised during type converison, so nothing is changed yet
                                     try:
                                         filler_value_conv = pd.Series([st.session_state.filler_value]).astype(st.session_state.dataset.dtypes[col]).iloc[0]
+
                                     except:
                                         raise ValueError(f"Filler value \"{st.session_state.filler_value}\" is not compatible with the type of the column \"{col}\", {st.session_state.dataset.dtypes[col]}")
                                 
                                 for col in st.session_state.columns_to_fill_na:   # actual filling of NA values
                                     filler_value_conv = pd.Series([st.session_state.filler_value]).astype(st.session_state.dataset.dtypes[col]).iloc[0]
+                                    # add correctly False boolean values
+                                    if st.session_state.dataset.dtypes[col] == 'bool':   
+                                            if col.strip().lower() == "false" or col == "0":
+                                                filler_value_conv = False
+                                                
                                     st.session_state.dataset[col].fillna(value=filler_value_conv, inplace=True)
                                 
                                 # if everything went well

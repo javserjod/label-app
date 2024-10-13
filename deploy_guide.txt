@@ -1,0 +1,15 @@
+1. CREATE .SPEC FILE
+pyi-makespec --onefile --additional-hooks-dir=./hooks run_app.py
+
+2. ADD TO datas IN .SPEC
+("venv/Lib/site-packages/altair/vegalite/v5/schema/vega-lite-schema.json","./altair/vegalite/v5/schema/"),
+        ("venv/Lib/site-packages/streamlit/static","./streamlit/static"),
+        ("venv/Lib/site-packages/streamlit/runtime","./streamlit/runtime"),
+        ("venv/Lib/site-packages/streamlit_option_menu","./streamlit_option_menu"),
+        ("application", "./application"),
+
+3. ADD TO hiddenimports in .SPEC
+"streamlit_option_menu"
+
+4. COMPILE AND CREATE .EXE IN dist ACCORDING TO .SPEC
+pyinstaller run_app.spec --clean

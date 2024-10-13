@@ -2,7 +2,7 @@ import streamlit as st
 from streamlit_option_menu import option_menu
 import home, upload_data, edit_data, data_information, graphic_labelling
 
-#if __name__ == "__main__":
+#if __name__ == "__main__":   # does not work with streamlit community cloud deployment
     
 st.set_page_config(page_title = "Label App",        # name shown in the browser tab
                 page_icon="",                    # icon shown in the browser tab, before the name

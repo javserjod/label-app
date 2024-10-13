@@ -1,3 +1,7 @@
 venv
 build
 dist
+hooks
+__pycache__
+run_app.spec
+run_app.py

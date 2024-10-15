@@ -5,7 +5,7 @@ import home, upload_data, edit_data, data_information, graphic_labelling
 #if __name__ == "__main__":   # does not work with streamlit community cloud deployment
     
 st.set_page_config(page_title = "Label App",        # name shown in the browser tab
-                page_icon="",                    # icon shown in the browser tab, before the name
+                page_icon="application/assets/icon-label-app-transp.png",                    # icon shown in the browser tab, before the name
                 layout="wide")                   # set the page layout to wide
 
 
@@ -156,11 +156,13 @@ class LabelApp:
         })
 
     def run():
+        
         with st.sidebar:
+            st.image("application/assets/logo-label-app-transp.png")
             if st.button(label=theme_button_icon(), help="Switch between light and dark mode. Page reruns"):
                 if st.session_state.current_app_theme=='light':    #then change to dark mode
                     st._config.set_option(f'theme.base', "dark")   # inherit from predefined dark theme
-                    st._config.set_option(f'theme.backgroundColor', "#0E1117")
+                    st._config.set_option(f'theme.backgroundColor', "#0E1117")  
                     st._config.set_option(f'theme.primaryColor', "#FF4B4B") 
                     st._config.set_option(f'theme.secondaryBackgroundColor', "#262730")
                     st._config.set_option(f'theme.textColor', "#FAFAFA")
@@ -173,7 +175,7 @@ class LabelApp:
                     #st._config.set_option(f'theme.secondaryBackgroundColor', "#F0F2F6")
                     #st._config.set_option(f'theme.textColor' , "#31333F")
                     # a bit darker than light theme
-                    st._config.set_option('theme.primaryColor', "#CC3B3B")
+                    st._config.set_option('theme.primaryColor', "#FF4B4B")
                     st._config.set_option('theme.backgroundColor', "#E0E0E0") 
                     st._config.set_option('theme.secondaryBackgroundColor', "#D0D3DB")  
                     st._config.set_option('theme.textColor', "#1F2028") 

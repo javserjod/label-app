@@ -568,16 +568,17 @@ def app():
             
             st.session_state.translated_indexes = []   # list of translated indexes for each bar (empty at first)
             
-            diff_colors= st.session_state.dataset[st.session_state.color].unique()   
+            diff_colors= st.session_state.dataset[st.session_state.color].unique()
             
             if diff_colors.size > 1000:   # if more than 1000 unique colors, show error
                 raise Exception("Too many unique values for the color variable. Change the color variable to a column with less unique values")        
             
-            for col in diff_colors:        # one trace for each unique value of the color variable
+            for col in sorted(diff_colors):        # one trace for each unique value of the color variable
                 
                 filtered_data = st.session_state.dataset[st.session_state.dataset[st.session_state.color] == col]       # filtered dataset by certain value of selected column
             
                 grouped = filtered_data.groupby(st.session_state.x_axis)      # group by same value, get dictionary with key and group
+                
                 x_values = grouped.size().index     # unique x values 
                 y_values = grouped.size().values    # count of each x value
 
@@ -633,12 +634,22 @@ def app():
             # LABELLING SECTION
             st.subheader("Labelling Section")
             # info about selected data samples
-            try: 
+            if len(st.session_state.selected_data.selection.points)>0:
                 n_points=f"{len(st.session_state.selected_data.selection.points)}"
-                txt = f"Diferent x-axis values selected:\t{n_points}"
-                st.write(":white_check_mark: "+txt)
-            except Exception:
-                st.write(":question: No data samples selected on the graph...")
+                with st.expander(f":white_check_mark: Bars selected:\t{n_points}"):
+                    for unique_x in sorted(st.session_state.dataset[st.session_state.x_axis].unique()):   # unique x values
+                        unique_x = str(unique_x)
+                        #if any(bar["x"] == unique_x for bar in st.session_state.selected_data.selection.points):
+                        # x not always carrying right values -> when using more than one bar in the same x value it deviates from the original x value
+                        if any(bar["text"].split("<br>")[1].split(": ")[1] == unique_x for bar in st.session_state.selected_data.selection.points):
+                            st.divider()
+                            st.markdown(f'**{st.session_state.x_axis} = {unique_x}**')
+                            for bar in st.session_state.selected_data.selection.points:
+                                if bar["text"].split("<br>")[1].split(": ")[1] == unique_x:
+                                    st.markdown(f'**Bar {bar["curve_number"]}** contains samples with {bar["text"].split("<br>")[0].lower()}')    # index of the bar
+                    st.markdown("#####")
+            else:
+                st.write(":question: No bars selected on the graph")
             
             # classes for labelling
             col1, col2, col3 = st.columns([1, 1, 1], vertical_alignment="bottom")

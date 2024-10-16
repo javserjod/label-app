@@ -418,6 +418,63 @@ def app():
                         st.error("Error while inserting the new sample ---- " + str(e), icon="🚨")
         
         
+        # SORT BY COLUMN               
+        with st.expander("Sort by columns"):
+            if len(st.session_state.dataset.columns) > 0:   # only available if there are columns in the dataset
+                with st.form("sort_by_columns_form"):
+                    st.multiselect("Select the columns to sort by:", options=get_current_headers(),
+                                help="Select the columns to sort the dataset by. The order of the columns selected will be the priority of the sorting",
+                                key="columns_to_sort_by", default=None, placeholder="Choose one or more columns")
+
+                    st.selectbox("Select the order of the sorting:", options=["ascending", "descending"],
+                                key="order_columns_type", index=0, placeholder="Choose the order of the sorting",
+                                help="Select the order of the sorting. By default, it will be ascending")
+                    
+                    if st.form_submit_button("Confirm sorting of selected column"):
+                        if len(st.session_state.columns_to_sort_by) > 0:   # at least one column to sort by selected
+                            st.session_state.dataset = st.session_state.dataset.sort_values(by=st.session_state.columns_to_sort_by, 
+                                                                                        ascending=(st.session_state.order_columns_type == "ascending"))
+                            # if everything went well
+                            reset_all_session_state()   # reset all charts and labelling variables from session state to default value
+                            st.rerun()   # rerun the app to update the table
+                        else:
+                            st.error("No column was selected to sort by. Please, select one to proceed.", icon="🚨")
+                
+            else:
+                st.error("No columns to order by. Please, add some columns to the dataset first with the 'Add variable column' functionality", icon="🚨")
+        
+        
+        # COLUMN TYPE CONVERSION
+        with st.expander("Column type conversion"):
+            if len(st.session_state.dataset.columns) > 0:
+                with st.form("column_conversion_form"):
+                    st.write("Column current dtypes are: ", st.session_state.dataset.dtypes.to_dict())
+                    st.selectbox("Select the column to convert:", options=get_current_headers(),
+                                index=None, placeholder="Choose a variable", key="column_to_convert",
+                                help="Select the column to convert to the selected dtype")
+                    
+                    dtypes_options = ["object", "int64", "float64", "bool", "datetime64"]
+                    st.selectbox("Select the Pandas dtype to force conversion of column:", options=dtypes_options, index=0,
+                                    placeholder="Choose the Pandas dtype:", key="column_convert_dtype",
+                                    help="Choose the Pandas dtype the selected column will try to convert to. By default, it will be dtype object ('O'), which is a string (categorical data)")
+                
+                    if st.form_submit_button("Confirm type conversion of selected column"):
+                        if st.session_state.column_to_convert != None:
+                            try:
+                                temp_conv = st.session_state.dataset[st.session_state.column_to_convert].astype(st.session_state.column_convert_dtype)   # preliminary conversion
+                                st.session_state.dataset[st.session_state.column_to_convert] = temp_conv   # assign the converted column to the dataset
+                                # if everything went well
+                                reset_all_session_state()   # reset all charts and labelling variables from session state to default value
+                                st.rerun()   # rerun the app to update the table
+                            except Exception as e:
+                                old_type= st.session_state.dataset.dtypes[st.session_state.column_to_convert]   # get the old type
+                                st.error(f"Error while converting column dtpye \"{old_type}\" to \"{st.session_state.column_convert_dtype}\"", icon="🚨")
+                        else:
+                            st.error("No column was selected to convert. Please, select one to proceed", icon="🚨")    
+            
+            else:
+                st.error("No columns to convert. Please, add some columns to the dataset first with the 'Add variable column' functionality", icon="🚨")
+        
         # CONDITIONAL FILTERING                
         with st.expander("Conditional filtering"):
             if st.session_state.dataset.shape[0] > 0 and st.session_state.dataset.shape[1] > 0:   # only available if there are rows and columns in the dataset
@@ -511,6 +568,7 @@ def app():
                             st.error("Error while filtering the dataset ---- " + str(e), icon="🚨")
             else:
                 st.error("Can't use this functionality. At least one row and one column are needed in the dataset", icon="🚨")
+    
     
     
         # DOWNLOAD DATASET SECTION-------------------------------------

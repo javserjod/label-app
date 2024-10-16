@@ -26,18 +26,18 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='LabelApp',
+    name='LabelApp',     # EXE name
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,       # hide the terminal when running EXE
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon="application/assets/icon-label-app-transp.png"
+    icon="application/assets/icon-label-app-transp.png"     # icon ubication
 )

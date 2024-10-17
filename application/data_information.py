@@ -26,6 +26,10 @@ def app():
         datetime_types = ["datetime", "datetime64", "datetime64[ns]", "datetimetz"]
         return st.session_state.dataset.select_dtypes(include=datetime_types).columns
     
+    def get_current_headers() -> list:
+        # returns list with the current headers of the current dataset being edited
+        return st.session_state.dataset.columns.tolist()
+    
     
     @st.cache_data
     def get_corr_matrix(corr_method: str, toggle_bool: bool) -> go.Figure:
@@ -111,7 +115,7 @@ def app():
                             st.plotly_chart(fig, key="hist_"+var, on_select="rerun", config=config)
                         else:   # too many unique values
                             st.markdown("######")   # add space between components
-                            st.warning(f"Variable \"{var}\" has too many unique values ({st.session_state.dataset[var].nunique()}) to plot its histogram")
+                            st.warning(f"Variable \"{var}\" has too many unique values ({st.session_state.dataset[var].nunique()}) to plot its histogram. Limit is 300 unique values")
                 else:
                     st.warning("No categorical variables in the dataset to plot histograms")
             except Exception:
@@ -193,15 +197,154 @@ def app():
                                         
                                         st.plotly_chart(fig, key="box_"+var, on_select="rerun", config=config)
                             else:
-                                st.warning(f"Variable \"{st.session_state.boxplot_selectbox_key}\" has too many unique values ({st.session_state.dataset[st.session_state.boxplot_selectbox_key].nunique()}) to plot its histogram")       
+                                st.warning(f"Variable \"{st.session_state.boxplot_selectbox_key}\" has too many unique values ({st.session_state.dataset[st.session_state.boxplot_selectbox_key].nunique()}) to plot its histogram. Limit is 300 unique values")       
                         else:
                             st.info("Select a non-numerical variable to color the boxplots. It must have no more than 300 unique classes", icon=":material/help_center:")
                     else:
                         st.warning("This dataset has too many rows to plot boxplots with current resources. Limit is 5000 samples")
-                except Exception:
-                    st.warning("This dataset does not support boxplots of numerical variables by non-numerical variables")
+                except Exception as e:
+                    st.warning("This dataset does not support boxplots of numerical variables by non-numerical variables"+str(e))
             else:
                 st.warning("Zero non-numerical variables in the dataset")
+        
+        
+        # BUBBLE CHART
+        with st.expander("Bubble chart"):
+            if st.session_state.dataset.shape[0] <= 5000:    # limit number of rows
+                numerical_columns, _ = get_numerical_non_numerical_columns()
+                numerical_columns = numerical_columns.append(get_datetime_columns())         # all numerical: int, float and datetime columns
+                if len(numerical_columns) > 0:    # at least one numerical variable in the dataset
+                    st.selectbox("Choose a variable for X-axis:", get_current_headers(), index=None, key="bubble_x_axis_selectbox", 
+                                placeholder="Select a variable for X-axis", help="Choose a variable for X-axis. It can be anyone in the dataset")
+                    
+                    st.selectbox("Choose a variable for Y-axis:", get_current_headers(), index=None, key="bubble_y_axis_selectbox", 
+                                placeholder="Select a variable for Y-axis", help="Choose a variable for Y-axis. It can be anyone in the dataset")
+                    
+                    st.selectbox("Choose a numerical variable for bubble size:", numerical_columns, index=None, key="bubble_size_selectbox",
+                                placeholder="Select a numerical variable for bubble size", help="Choose a numerical variable for bubble size")
+                    
+                    st.selectbox("Choose a numerical variable for bubble color:", numerical_columns, index=None, key="bubble_color_selectbox",
+                                placeholder="Select a numerical variable for bubble color", help="Choose a numerical variable for bubble color")
+                    
+                    st.slider("Bubble size scale factor:", min_value=0.1, max_value=100.0, value=50.0, step=0.1, key="bubble_size_scale_slider")
+                    
+                    if st.session_state.bubble_x_axis_selectbox != None and st.session_state.bubble_y_axis_selectbox != None and st.session_state.bubble_size_selectbox != None and st.session_state.bubble_color_selectbox != None:
+                        try:
+                            fig = go.Figure(data=[go.Scatter(   x=st.session_state.dataset[st.session_state.bubble_x_axis_selectbox], 
+                                                                y=st.session_state.dataset[st.session_state.bubble_y_axis_selectbox], 
+                                                                mode='markers', 
+                                                                marker=dict(size=st.session_state.dataset[st.session_state.bubble_size_selectbox], 
+                                                                            sizemode='area',
+                                                                            # scale the size of the bubbles to the maximum size of the variable divided by the mean of the variable
+                                                                            sizeref= 1/st.session_state.bubble_size_scale_slider * max(st.session_state.dataset[st.session_state.bubble_color_selectbox])/((sum(st.session_state.dataset[st.session_state.bubble_color_selectbox])/len(st.session_state.dataset[st.session_state.bubble_color_selectbox]))),
+                                                                            color=st.session_state.dataset[st.session_state.bubble_color_selectbox],
+                                                                            colorscale="rdbu",
+                                                                            showscale=True), 
+                                                                text=st.session_state.dataset.index,
+                                                                hovertemplate='Index: %{text}<br>X: %{x}<br>Y: %{y}<br>Size: %{marker.size}<br>Color: %{marker.color}',
+                                                                )])
+                            
+                            fig.update_layout(title=dict(text="Bubble chart", x=0.5, xanchor='center', y=0.9, yanchor='top'), 
+                                            xaxis_title_text=st.session_state.bubble_x_axis_selectbox, yaxis_title_text=st.session_state.bubble_y_axis_selectbox,  # set axis titles
+                                            activeselection=dict(fillcolor='pink', opacity=0.001))
+                            
+                            st.plotly_chart(fig, key="bubble_chart", on_select="rerun", config=config)
+                        except Exception as e:
+                            st.warning("This dataset does not support bubble chart. " + str(e))
+                else:
+                    st.warning("Zero numerical variables in the dataset")
+            else:
+                st.warning("This dataset has too many rows to plot bubble chart with current resources. Limit is 5000 samples")
+                
+            
+        # RADAR CHART
+        with st.expander("Radar chart"):
+            if st.session_state.dataset.shape[0] <= 5000:    # limit number of rows
+                numerical_columns, _ = get_numerical_non_numerical_columns()
+                numerical_columns = numerical_columns.append(get_datetime_columns())         # all numerical: int, float and datetime columns
+                categorical_columns = get_categorical_columns()    # categorical columns (without boolean)
+                if len(categorical_columns) > 0:    # at least one categorical variable in the dataset
+                    if len(numerical_columns) > 0:    # at least one numerical variable in the dataset
+                        st.selectbox("Choose a categorical variable for polar values:", get_categorical_columns(), index=None, key="radar_outer_selectbox", 
+                                    placeholder="Select a categorical variable for polar values", help="Choose a categorical variable for the outer ring of the circle, the polar value. Recommended to have few unique values")
+                        
+                        st.multiselect("Choose numerical variables for radial values:", numerical_columns, key="radar_numerical_multiselect",
+                                       placeholder="Select one or more numerical variables for radial values", help="Choose one or more numerical variables to plot in the radar chart as radial values")
+                        
+                        st.selectbox("Choose the calculation method for the radial values:", options=["mean", "median", "sum", "max", "min", "count", "std", "var"],
+                                     index=0, key="radar_calculation_selectbox", help="Choose a method to calculate the radial values of the radar chart")
+                        
+                        if st.session_state.radar_outer_selectbox != None and len(st.session_state.radar_numerical_multiselect) > 0:
+                            try:
+                                fig = go.Figure()
+                                for var in st.session_state.radar_numerical_multiselect:
+                                    
+                                    grouped_agg = st.session_state.dataset.groupby(st.session_state.radar_outer_selectbox)[var].agg(st.session_state.radar_calculation_selectbox)
+                                    
+                                    fig.add_trace(go.Scatterpolar(   r=grouped_agg.values,
+                                                                    theta=grouped_agg.index, 
+                                                                    mode='markers',
+                                                                    fill='toself', 
+                                                                    name=var))
+                                
+                                fig.update_layout(title=dict(text="Radar chart", x=0.5, xanchor='center', y=0.9, yanchor='top'),
+                                                polar=dict( radialaxis=dict(visible=True, color="black", gridcolor="gray"),      # radial axis options
+                                                            angularaxis=dict(visible=True)),)                                    # angular axis options
+                                
+                                st.plotly_chart(fig, key="radar_chart", on_select="rerun", config=config)
+                            except Exception as e:
+                                st.warning("This dataset does not support radar chart. " + str(e))
+                    else:
+                        st.warning("Zero numerical variables in the dataset")
+                else:
+                    st.warning("Zero categorical variables in the dataset")
+            else:
+                st.warning("This dataset has too many rows to plot radar chart with current resources. Limit is 5000 samples")
+                    
+        
+        #PARALLEL COORDINATES
+        with st.expander("Parallel coordinates"):
+            if st.session_state.dataset.shape[0] <= 5000:
+                numerical_columns, _ = get_numerical_non_numerical_columns()
+                numerical_columns = numerical_columns.append(get_datetime_columns())         # all numerical: int, float and datetime columns
+                categorical_columns = get_categorical_columns()    # categorical columns (without boolean)
+                
+                if len(numerical_columns) > 1:    # at least two numerical variables 
+                    if len(categorical_columns) > 0:    # at least one categorical
+                        st.multiselect("Choose at least 2 numerical variables for parallel coordinates:", numerical_columns, key="parallel_numerical_multiselect",
+                                    placeholder="Select two or more numerical variables", help="Choose two or more numerical variables to plot in the parallel coordinates")
+                        st.selectbox("Choose a categorical variable for color:", categorical_columns, index=None, key="parallel_color_selectbox",
+                                     placeholder="Select a categorical variable for color", help="Choose a categorical variable to color the parallel coordinates. Booleans are forbidden")
+                        
+                        if len(st.session_state.parallel_numerical_multiselect) >= 2 and st.session_state.parallel_color_selectbox != None:
+                            try:
+                                color_mapping = st.session_state.dataset[st.session_state.parallel_color_selectbox].astype('category').cat.codes   # map categorical values to numbers
+                                if st.checkbox("Show color mapping (number to category):", value=False):
+                                    st.table(st.session_state.dataset[st.session_state.parallel_color_selectbox].unique())
+                                fig = go.Figure(data=go.Parcoords(line=dict(color = color_mapping,
+                                                                            #colorscale = [[0,'purple'],[0.5,'lightseagreen'],[1,'gold']],
+                                                                            colorscale = 'rdbu', 
+                                                                            showscale=True),
+                                                                dimensions=[dict(
+                                                                                range=[st.session_state.dataset[var].min(), st.session_state.dataset[var].max()], 
+                                                                                label=var, 
+                                                                                values=st.session_state.dataset[var]) 
+                                                                            for var in st.session_state.parallel_numerical_multiselect]))
+                                
+                                fig.update_layout(title=dict(text="Parallel coordinates", x=0.5, xanchor='center', y=0.9, yanchor='top'), 
+                                                activeselection=dict(fillcolor='pink', opacity=0.001))
+                                st.plotly_chart(fig, key="parallel_chart", on_select="rerun", config=config)
+                            
+                            except Exception as e:
+                                st.warning("This dataset does not support parallel coordinates. " + str(e))
+                    else:
+                        st.warning("Zero categorical variables in the dataset")
+                else:
+                    st.warning("This dataset has too few numerical variables to plot parallel coordinates. At least two are needed")
+                        
+            else:
+                st.warning("This dataset has too many rows to plot parallel coordinates with current resources. Limit is 5000 samples")
+        
         
         
         # CORRELATION MATRIX BETWEEN NUMERICAL VARIABLES

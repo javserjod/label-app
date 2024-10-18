@@ -117,7 +117,7 @@ def app():
                             st.markdown("######")   # add space between components
                             st.warning(f"Variable \"{var}\" has too many unique values ({st.session_state.dataset[var].nunique()}) to plot its histogram. Limit is 300 unique values")
                 else:
-                    st.warning("No categorical variables in the dataset to plot histograms")
+                    st.warning("No categorical variables in the dataset to plot histograms (including boolean)")
             except Exception:
                 st.warning("This dataset does not support histograms") 
         
@@ -191,7 +191,7 @@ def app():
                                                                     )
                                                             )
                                         fig.update_layout(title=dict(text="Boxplot of "+var+" by "+st.session_state.boxplot_selectbox_key, x=0.5, xanchor='center', y=0.9, yanchor='top'), 
-                                                        dragmode="select", selectdirection="h",   # fits all height, just horizontal movement for selection
+                                                        #dragmode="select", selectdirection="h",   # fits all height, just horizontal movement for selection
                                                         yaxis_title_text=var, xaxis_title_text=st.session_state.boxplot_selectbox_key,  # set axis titles
                                                         activeselection=dict(fillcolor='pink', opacity=0.001), showlegend=True)
                                         
@@ -203,9 +203,9 @@ def app():
                     else:
                         st.warning("This dataset has too many rows to plot boxplots with current resources. Limit is 5000 samples")
                 except Exception as e:
-                    st.warning("This dataset does not support boxplots of numerical variables by non-numerical variables"+str(e))
+                    st.warning("This dataset does not support boxplots of numerical variables by non-numerical variables. "+str(e))
             else:
-                st.warning("Zero non-numerical variables in the dataset")
+                st.warning("Zero categorical variables in the dataset (including boolean)")
         
         
         # BUBBLE CHART
@@ -262,11 +262,11 @@ def app():
             if st.session_state.dataset.shape[0] <= 5000:    # limit number of rows
                 numerical_columns, _ = get_numerical_non_numerical_columns()
                 numerical_columns = numerical_columns.append(get_datetime_columns())         # all numerical: int, float and datetime columns
-                categorical_columns = get_categorical_columns()    # categorical columns (without boolean)
+                categorical_columns = get_categorical_columns().append(get_bool_columns())    # categorical columns (with boolean)
                 if len(categorical_columns) > 0:    # at least one categorical variable in the dataset
                     if len(numerical_columns) > 0:    # at least one numerical variable in the dataset
-                        st.selectbox("Choose a categorical variable for polar values:", get_categorical_columns(), index=None, key="radar_outer_selectbox", 
-                                    placeholder="Select a categorical variable for polar values", help="Choose a categorical variable for the outer ring of the circle, the polar value. Recommended to have few unique values")
+                        st.selectbox("Choose a categorical variable for polar values:", categorical_columns, index=None, key="radar_outer_selectbox", 
+                                    placeholder="Select a categorical variable for polar values", help="Choose a categorical variable for the outer ring of the circle, the polar value. Boolean are included. Recommended to have few unique values")
                         
                         st.multiselect("Choose numerical variables for radial values:", numerical_columns, key="radar_numerical_multiselect",
                                        placeholder="Select one or more numerical variables for radial values", help="Choose one or more numerical variables to plot in the radar chart as radial values")
@@ -297,24 +297,24 @@ def app():
                     else:
                         st.warning("Zero numerical variables in the dataset")
                 else:
-                    st.warning("Zero categorical variables in the dataset")
+                    st.warning("Zero categorical variables in the dataset (including boolean)")
             else:
                 st.warning("This dataset has too many rows to plot radar chart with current resources. Limit is 5000 samples")
                     
         
         #PARALLEL COORDINATES
-        with st.expander("Parallel coordinates"):
+        with st.expander("Parallel coordinates plot"):
             if st.session_state.dataset.shape[0] <= 5000:
                 numerical_columns, _ = get_numerical_non_numerical_columns()
                 numerical_columns = numerical_columns.append(get_datetime_columns())         # all numerical: int, float and datetime columns
-                categorical_columns = get_categorical_columns()    # categorical columns (without boolean)
+                categorical_columns = get_categorical_columns().append(get_bool_columns())    # categorical columns (with boolean)
                 
                 if len(numerical_columns) > 1:    # at least two numerical variables 
                     if len(categorical_columns) > 0:    # at least one categorical
                         st.multiselect("Choose at least 2 numerical variables for parallel coordinates:", numerical_columns, key="parallel_numerical_multiselect",
                                     placeholder="Select two or more numerical variables", help="Choose two or more numerical variables to plot in the parallel coordinates")
                         st.selectbox("Choose a categorical variable for color:", categorical_columns, index=None, key="parallel_color_selectbox",
-                                     placeholder="Select a categorical variable for color", help="Choose a categorical variable to color the parallel coordinates. Booleans are forbidden")
+                                     placeholder="Select a categorical variable for color", help="Choose a categorical variable to color the parallel coordinates. Booleans are allowed")
                         
                         if len(st.session_state.parallel_numerical_multiselect) >= 2 and st.session_state.parallel_color_selectbox != None:
                             try:
@@ -338,7 +338,7 @@ def app():
                             except Exception as e:
                                 st.warning("This dataset does not support parallel coordinates. " + str(e))
                     else:
-                        st.warning("Zero categorical variables in the dataset")
+                        st.warning("Zero categorical variables in the dataset (including boolean)")
                 else:
                     st.warning("This dataset has too few numerical variables to plot parallel coordinates. At least two are needed")
                         

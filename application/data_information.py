@@ -346,6 +346,29 @@ def app():
                 st.warning("This dataset has too many rows to plot parallel coordinates with current resources. Limit is 5000 samples")
         
         
+        # PIE CHART
+        with st.expander("Pie chart of a categorical variable"):
+            categorical_columns = get_categorical_columns().append(get_bool_columns())    # categorical columns (with boolean)
+            if len(categorical_columns) > 0:    # at least one categorical
+                st.selectbox("Choose a categorical variable:", categorical_columns, index=None, key="pie_chart_selectbox",
+                                     placeholder="Select a categorical variable for the pie chart", help="Choose a categorical variable to plot the pie chart. Booleans are allowed")
+                if st.session_state.pie_chart_selectbox != None:
+                    if st.session_state.dataset[st.session_state.pie_chart_selectbox].nunique() <= 300:
+                        try:
+                            labels = st.session_state.dataset[st.session_state.pie_chart_selectbox].value_counts().index
+                            counts_per_label = st.session_state.dataset[st.session_state.pie_chart_selectbox].value_counts().values
+                            st.markdown(f"The are **{len(labels)}** different labels in the variable \"{st.session_state.pie_chart_selectbox}\"")
+                            fig = go.Figure(data=[go.Pie(labels=labels, values=counts_per_label)])
+
+                            fig.update_layout(title=dict(text=f"Pie chart of \"{st.session_state.pie_chart_selectbox}\"", x=0.5, xanchor='center', y=0.9, yanchor='top'), 
+                                                    activeselection=dict(fillcolor='pink', opacity=0.001))
+                            st.plotly_chart(fig, key="pie_chart", on_select="rerun", config=config)
+                        except:
+                            st.warning("This dataset does not support pie chart")
+                    else:
+                        st.warning(f"Variable \"{st.session_state.pie_chart_selectbox}\" has too many unique values ({st.session_state.dataset[st.session_state.pie_chart_selectbox].nunique()}) to plot its histogram. Limit is 300 unique values")
+            else:
+                st.warning("Zero categorical variables in the dataset (including boolean)")
         
         # CORRELATION MATRIX BETWEEN NUMERICAL VARIABLES
         with st.expander("Correlation matrix between numerical variables"):

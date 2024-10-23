@@ -15,7 +15,7 @@ def app():
         - Upload and preview your original dataset in any source extension of the supported: CSV, JSON, Excel and Parquet.
         - Modify the dataset with several tools as you visualize the changes: handle NA values, rename and displace headers, add and delete variables, replace cell values, insert new samples, sort by columns, control variables data types and filter with conditional statements.
         - Plot the dataset in a parameterized graph (line chart, scatter plot, bar chart) where you can draw by hand selectors to group samples and assign classes to them. The new label column can be added to the dataset and mantain the operational flow.
-        - Check aditional information about the dataset: general description, histograms for each variable, boxplots where detect outliers, bubble chart, radar chart, parallel coordinates plot and correlation matrix.
+        - Check aditional information about the dataset: general description, histograms for each variable, boxplots where detect outliers, bubble chart, radar chart, parallel coordinates plot, pie chart and correlation matrix.
         - Rename and download the modified dataset in one of the supported extensions.
 
         ## Access

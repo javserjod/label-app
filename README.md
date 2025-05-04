@@ -26,7 +26,7 @@ Otherwise, you can guide yourself with these steps:
 2. Open the IDE and navigate to the right directory.
 3. Optional: create a virtual environment and activate it with the next commands:
 ```
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser     # to avoid any problem (only if neccesary)
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser     # to avoid any problem (only if necessary)
 
 pip install virtualenv    # install package
 

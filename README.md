@@ -47,3 +47,6 @@ streamlit run application/main.py
 
 ## Author
 Developed by Javier Serrano Jodral as final project for Biomedical Engineering Master's Degree at Universidad de Sevilla.
+
+Download thesis report: [TFM_MIBSD_javserjod.pdf](https://github.com/user-attachments/files/20092234/TFM_MIBSD_javserjod.pdf)
+
